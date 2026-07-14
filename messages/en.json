@@ -1,0 +1,152 @@
+{
+  "app": {
+    "title": "AVERT R21 Dashboard",
+    "subtitle": "R21 test-negative malaria vaccine study"
+  },
+  "nav": {
+    "overview": "Overview",
+    "vaccineCoverage": "Vaccine coverage",
+    "microscopy": "Microscopy",
+    "verification": "Verification visits",
+    "dataQuality": "Data quality",
+    "download": "Download",
+    "signOut": "Sign out"
+  },
+  "countries": {
+    "UG": "Uganda",
+    "BF": "Burkina Faso",
+    "BOTH": "Both countries",
+    "all": "All countries"
+  },
+  "filters": {
+    "country": "Country",
+    "facility": "Facility",
+    "allFacilities": "All facilities",
+    "dateRange": "Date range",
+    "from": "From",
+    "to": "To",
+    "caseDefinition": "Define cases/controls by",
+    "rdt": "RDT result",
+    "microscopy": "Microscopy result",
+    "reset": "Reset filters"
+  },
+  "kpi": {
+    "screened": "Screened",
+    "enrolled": "Enrolled",
+    "cases": "Cases (test+)",
+    "controls": "Controls (test−)",
+    "withCard": "With vaccine card",
+    "withMicroscopy": "With microscopy",
+    "needed": "Verification needed",
+    "completed": "Verification done",
+    "outstanding": "Outstanding"
+  },
+  "charts": {
+    "weeklyTrends": "Weekly enrollment trends",
+    "enrollmentByFacility": "Enrollment by facility",
+    "enrollmentByFacilitySub": "Enrolled, cases and controls per facility",
+    "ageDistribution": "Age distribution",
+    "ageDistributionSub": "Enrolled participants, by sex (months)",
+    "doses": "Vaccine doses received",
+    "coverageByWeek": "Vaccination coverage by week",
+    "ageAtVaccination": "Age at vaccination",
+    "ageAtVaccinationSub": "Months at each dose (reference lines: 6, 7, 8, 18)",
+    "timeSinceLastDose": "Time since last dose (weeks)",
+    "timeBetweenDoses": "Time between doses (weeks)",
+    "concordanceOverTime": "RDT–microscopy concordance over time",
+    "parasiteDensity": "Parasite density by RDT status",
+    "male": "Male",
+    "female": "Female",
+    "enrolledSeries": "Enrolled",
+    "casesSeries": "Cases",
+    "controlsSeries": "Controls",
+    "percent": "Percent",
+    "count": "Count",
+    "week": "Week",
+    "ageMonths": "Age (months)",
+    "weeks": "Weeks",
+    "doseCount": "Number of doses"
+  },
+  "tables": {
+    "demographics": "Demographics summary",
+    "matching": "Case-control matching",
+    "crosstab": "RDT vs microscopy",
+    "slideQuality": "Slide quality",
+    "concordanceMetrics": "Concordance metrics",
+    "metric": "Metric",
+    "value": "Value",
+    "description": "Description",
+    "overall": "Overall",
+    "n": "N",
+    "meanAge": "Mean age (months)",
+    "medianAge": "Median age (months)",
+    "ageRange": "Age range (months)",
+    "scenario": "Scenario",
+    "matchedPairs": "Matched pairs",
+    "unmatchedCases": "Unmatched cases",
+    "unusedControls": "Unused controls",
+    "fractionDiscarded": "Fraction discarded",
+    "sensitivity": "Sensitivity",
+    "specificity": "Specificity",
+    "ppv": "PPV",
+    "npv": "NPV",
+    "agreement": "Overall agreement"
+  },
+  "microscopy": {
+    "title": "Microscopy results",
+    "noData": "No microscopy data available yet.",
+    "noDataHint": "Blood-smear reading data has not been loaded. This section will populate automatically once it is available."
+  },
+  "verification": {
+    "title": "Vaccine-coverage verification visits",
+    "intro": "Participants flagged as needing a separate vaccine-coverage visit (need_vac_cov = 1) and how many have a matching vaccine-coverage record.",
+    "downloadOutstanding": "Download outstanding list (CSV)",
+    "byFacility": "By facility"
+  },
+  "dataQuality": {
+    "title": "Data quality",
+    "intro": "Automated checks derived from the survey validation rules. Issues re-open if they recur and resolve automatically once the data is corrected.",
+    "open": "Open",
+    "resolved": "Resolved",
+    "all": "All",
+    "status": "Status",
+    "severity": "Severity",
+    "check": "Check",
+    "subject": "Subject",
+    "detected": "Detected",
+    "resolvedAt": "Resolved",
+    "noIssues": "No issues found.",
+    "search": "Search issues"
+  },
+  "download": {
+    "title": "Download data",
+    "intro": "Export the currently visible records as CSV. Exports respect your country access.",
+    "enrollee": "Enrollee data",
+    "vaccinationStatus": "Vaccination-status data",
+    "button": "Download CSV"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signUp": "Create account",
+    "email": "Email",
+    "password": "Password",
+    "signInButton": "Sign in",
+    "signUpButton": "Create account",
+    "toggleToSignUp": "Need an account? Create one",
+    "toggleToSignIn": "Already have an account? Sign in",
+    "notAuthorized": "This email is not authorized to access the dashboard.",
+    "invalidCredentials": "Invalid email or password.",
+    "checkEmail": "Check your email to confirm your account, then sign in.",
+    "signingIn": "Signing in…",
+    "restricted": "Access is limited to pre-approved study staff."
+  },
+  "common": {
+    "language": "Language",
+    "english": "English",
+    "french": "Français",
+    "noData": "No data",
+    "loading": "Loading…",
+    "yes": "Yes",
+    "no": "No"
+  }
+}

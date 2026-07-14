@@ -1,26 +1,85 @@
 @import "tailwindcss";
 
+/* ---- Design tokens -------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --border: #e3e6ea;
+  --text: #1a2230;
+  --text-muted: #667085;
+  --primary: #0e7c86;      /* teal — study accent */
+  --primary-fg: #ffffff;
+  --accent: #b25a1f;
+  --ug: #1f7a8c;
+  --bf: #b5651d;
+  --pos: #d1495b;          /* cases / positive */
+  --neg: #2e6f95;          /* controls / negative */
+  --good: #2f9e6f;
+  --warn: #d99a00;
+  --error: #d1495b;
+  --chart-1: #0e7c86;
+  --chart-2: #d1495b;
+  --chart-3: #6b8f3e;
+  --chart-4: #8a5cb0;
+  --chart-5: #d99a00;
+  --chart-6: #2e6f95;
+  --radius: 12px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c232d;
+    --border: #2a323d;
+    --text: #e6edf3;
+    --text-muted: #9aa7b4;
+    --primary: #3bb2be;
+    --primary-fg: #04252a;
   }
 }
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --radius-card: var(--radius);
+}
+
+html {
+  background: var(--bg);
+  color: var(--text);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
 }

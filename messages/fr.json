@@ -1,0 +1,152 @@
+{
+  "app": {
+    "title": "Tableau de bord AVERT R21",
+    "subtitle": "Étude test-négatif du vaccin antipaludique R21"
+  },
+  "nav": {
+    "overview": "Aperçu",
+    "vaccineCoverage": "Couverture vaccinale",
+    "microscopy": "Microscopie",
+    "verification": "Visites de vérification",
+    "dataQuality": "Qualité des données",
+    "download": "Télécharger",
+    "signOut": "Se déconnecter"
+  },
+  "countries": {
+    "UG": "Ouganda",
+    "BF": "Burkina Faso",
+    "BOTH": "Les deux pays",
+    "all": "Tous les pays"
+  },
+  "filters": {
+    "country": "Pays",
+    "facility": "Formation sanitaire",
+    "allFacilities": "Toutes les formations",
+    "dateRange": "Période",
+    "from": "Du",
+    "to": "Au",
+    "caseDefinition": "Définir cas/témoins par",
+    "rdt": "Résultat TDR",
+    "microscopy": "Résultat microscopie",
+    "reset": "Réinitialiser"
+  },
+  "kpi": {
+    "screened": "Dépistés",
+    "enrolled": "Inclus",
+    "cases": "Cas (test+)",
+    "controls": "Témoins (test−)",
+    "withCard": "Avec carte de vaccination",
+    "withMicroscopy": "Avec microscopie",
+    "needed": "Vérification requise",
+    "completed": "Vérification faite",
+    "outstanding": "En attente"
+  },
+  "charts": {
+    "weeklyTrends": "Tendances hebdomadaires d'inclusion",
+    "enrollmentByFacility": "Inclusions par formation sanitaire",
+    "enrollmentByFacilitySub": "Inclus, cas et témoins par formation",
+    "ageDistribution": "Distribution de l'âge",
+    "ageDistributionSub": "Participants inclus, par sexe (mois)",
+    "doses": "Doses de vaccin reçues",
+    "coverageByWeek": "Couverture vaccinale par semaine",
+    "ageAtVaccination": "Âge à la vaccination",
+    "ageAtVaccinationSub": "Mois à chaque dose (lignes de référence : 6, 7, 8, 18)",
+    "timeSinceLastDose": "Temps depuis la dernière dose (semaines)",
+    "timeBetweenDoses": "Temps entre les doses (semaines)",
+    "concordanceOverTime": "Concordance TDR–microscopie dans le temps",
+    "parasiteDensity": "Densité parasitaire selon le statut TDR",
+    "male": "Masculin",
+    "female": "Féminin",
+    "enrolledSeries": "Inclus",
+    "casesSeries": "Cas",
+    "controlsSeries": "Témoins",
+    "percent": "Pourcentage",
+    "count": "Nombre",
+    "week": "Semaine",
+    "ageMonths": "Âge (mois)",
+    "weeks": "Semaines",
+    "doseCount": "Nombre de doses"
+  },
+  "tables": {
+    "demographics": "Résumé démographique",
+    "matching": "Appariement cas-témoins",
+    "crosstab": "TDR vs microscopie",
+    "slideQuality": "Qualité des lames",
+    "concordanceMetrics": "Mesures de concordance",
+    "metric": "Mesure",
+    "value": "Valeur",
+    "description": "Description",
+    "overall": "Global",
+    "n": "N",
+    "meanAge": "Âge moyen (mois)",
+    "medianAge": "Âge médian (mois)",
+    "ageRange": "Étendue d'âge (mois)",
+    "scenario": "Scénario",
+    "matchedPairs": "Paires appariées",
+    "unmatchedCases": "Cas non appariés",
+    "unusedControls": "Témoins non utilisés",
+    "fractionDiscarded": "Fraction écartée",
+    "sensitivity": "Sensibilité",
+    "specificity": "Spécificité",
+    "ppv": "VPP",
+    "npv": "VPN",
+    "agreement": "Concordance globale"
+  },
+  "microscopy": {
+    "title": "Résultats de microscopie",
+    "noData": "Aucune donnée de microscopie disponible pour le moment.",
+    "noDataHint": "Les données de lecture des gouttes épaisses n'ont pas été chargées. Cette section se remplira automatiquement dès qu'elles seront disponibles."
+  },
+  "verification": {
+    "title": "Visites de vérification de la couverture vaccinale",
+    "intro": "Participants signalés comme nécessitant une visite de couverture vaccinale distincte (need_vac_cov = 1) et nombre de ceux ayant un enregistrement correspondant.",
+    "downloadOutstanding": "Télécharger la liste en attente (CSV)",
+    "byFacility": "Par formation sanitaire"
+  },
+  "dataQuality": {
+    "title": "Qualité des données",
+    "intro": "Contrôles automatisés dérivés des règles de validation de l'enquête. Les problèmes se rouvrent s'ils réapparaissent et se résolvent automatiquement une fois les données corrigées.",
+    "open": "Ouvert",
+    "resolved": "Résolu",
+    "all": "Tous",
+    "status": "Statut",
+    "severity": "Gravité",
+    "check": "Contrôle",
+    "subject": "Sujet",
+    "detected": "Détecté",
+    "resolvedAt": "Résolu le",
+    "noIssues": "Aucun problème trouvé.",
+    "search": "Rechercher"
+  },
+  "download": {
+    "title": "Télécharger les données",
+    "intro": "Exporter les enregistrements visibles au format CSV. Les exports respectent votre accès par pays.",
+    "enrollee": "Données d'inclusion",
+    "vaccinationStatus": "Données de statut vaccinal",
+    "button": "Télécharger CSV"
+  },
+  "auth": {
+    "signIn": "Connexion",
+    "signUp": "Créer un compte",
+    "email": "Courriel",
+    "password": "Mot de passe",
+    "signInButton": "Se connecter",
+    "signUpButton": "Créer un compte",
+    "toggleToSignUp": "Pas de compte ? Créez-en un",
+    "toggleToSignIn": "Vous avez déjà un compte ? Connectez-vous",
+    "notAuthorized": "Ce courriel n'est pas autorisé à accéder au tableau de bord.",
+    "invalidCredentials": "Courriel ou mot de passe invalide.",
+    "checkEmail": "Vérifiez votre courriel pour confirmer votre compte, puis connectez-vous.",
+    "signingIn": "Connexion…",
+    "restricted": "L'accès est réservé au personnel de l'étude pré-approuvé."
+  },
+  "common": {
+    "language": "Langue",
+    "english": "English",
+    "french": "Français",
+    "noData": "Aucune donnée",
+    "loading": "Chargement…",
+    "yes": "Oui",
+    "no": "Non"
+  }
+}
