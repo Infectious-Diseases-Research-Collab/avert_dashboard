@@ -40,5 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Instructions.md
-
+# operational docs / real credentials — never public
+Instructions.md
+supabase/seed_allowed_users.sql

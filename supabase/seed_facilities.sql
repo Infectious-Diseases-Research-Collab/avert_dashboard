@@ -5,15 +5,15 @@
 -- =====================================================================
 
 insert into public.facilities (country, mrc, name, district) values
-  ('UG','27','Lalogi HCIV','Omoro'),
-  ('UG','31','Namokora HCIV','Kitgum'),
-  ('UG','32','Kitgum Matidi HCIII','Kitgum'),
-  ('UG','36','Otwal HCIII','Oyam'),
-  ('UG','56','Nawaikoke HCIII','Kaliro'),
+  ('UG','027','Lalogi HCIV','Omoro'),
+  ('UG','031','Namokora HCIV','Kitgum'),
+  ('UG','032','Kitgum Matidi HCIII','Kitgum'),
+  ('UG','036','Otwal HCIII','Oyam'),
+  ('UG','056','Nawaikoke HCIII','Kaliro'),
   ('UG','62','Kigandalo HCIV','Mayuge'),
-  ('UG','69','Orum HCIV','Otuke'),
-  ('UG','71','Nadunget HCIII','Moroto'),
-  ('UG','79','Rwenyawawa HCIII','Kikuube')
+  ('UG','069','Orum HCIV','Otuke'),
+  ('UG','071','Nadunget HCIII','Moroto'),
+  ('UG','079','Rwenyawawa HCIII','Kikuube')
 on conflict (country, mrc) do update
   set name = excluded.name, district = excluded.district;
 

@@ -204,6 +204,25 @@ as $$
       or public.auth_country_access() = row_country;
 $$;
 
+-- Look up an email's default UI language, callable by anyone (including
+-- signed-out visitors on the login page) so the sign-up confirmation message
+-- can render in the right language before the account is even confirmed.
+-- Deliberately narrow: returns only default_locale, never country_access,
+-- is_admin, or full_name. It does confirm/deny whether an email is on the
+-- allowlist (returns null vs. a locale) — an acceptable trade-off for this
+-- small, private study allowlist; do not widen this function's return shape.
+create or replace function public.lookup_default_locale(p_email text)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select default_locale from public.allowed_users where lower(email) = lower(p_email);
+$$;
+
+grant execute on function public.lookup_default_locale(text) to anon, authenticated;
+
 -- =====================================================================
 -- Signup allowlist gate
 -- Reject creation of an auth user whose email is not in allowed_users.
