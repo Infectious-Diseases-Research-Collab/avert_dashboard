@@ -5,6 +5,11 @@ import type { Country, Profile } from "@/lib/types";
 /**
  * Load the signed-in user's allowlist profile (country scope, locale, admin).
  * Returns null if not authenticated or not on the allowlist. Cached per request.
+ *
+ * Uses the get_my_profile() RPC (case-insensitive email match) rather than a
+ * direct table query — allowed_users.email may be stored with mixed case, and
+ * a plain equality match silently fails for a legitimate, allowlisted user
+ * whose typed-at-signup email differs only in case from the stored row.
  */
 export const getProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient();
@@ -13,13 +18,9 @@ export const getProfile = cache(async (): Promise<Profile | null> => {
   } = await supabase.auth.getUser();
   if (!user?.email) return null;
 
-  const { data } = await supabase
-    .from("allowed_users")
-    .select("email, country_access, is_admin, default_locale, full_name")
-    .eq("email", user.email.toLowerCase())
-    .maybeSingle();
-
-  return (data as Profile | null) ?? null;
+  const { data } = await supabase.rpc("get_my_profile");
+  const row = Array.isArray(data) ? data[0] : data;
+  return (row as Profile | null) ?? null;
 });
 
 /** Countries a profile is allowed to see. */

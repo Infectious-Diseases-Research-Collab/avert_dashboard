@@ -223,6 +223,37 @@ $$;
 
 grant execute on function public.lookup_default_locale(text) to anon, authenticated;
 
+-- Return the signed-in caller's own allowlist profile, matched case-
+-- insensitively (allowed_users.email may be stored with mixed case, e.g.
+-- 'Isabel.Rodriguez@ucsf.edu'). No email argument — always the caller's own
+-- row via auth_email(), so there's no way to look up anyone else's profile.
+-- The app's previous profile lookup did a case-SENSITIVE match, which
+-- silently failed for any signed-in, allowlisted user whose stored email
+-- had different casing than what they typed at signup — sending them into
+-- a login/dashboard redirect loop despite being a legitimate, authorized
+-- user the whole time. Row-Level Security itself was never affected (it
+-- already compared case-insensitively), so no data was ever exposed by
+-- this bug — it only broke the sign-in UX for mixed-case emails.
+create or replace function public.get_my_profile()
+returns table (
+  email          text,
+  country_access text,
+  is_admin       boolean,
+  default_locale text,
+  full_name      text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select email, country_access, is_admin, default_locale, full_name
+  from public.allowed_users
+  where lower(email) = public.auth_email();
+$$;
+
+grant execute on function public.get_my_profile() to authenticated;
+
 -- =====================================================================
 -- Signup allowlist gate
 -- Reject creation of an auth user whose email is not in allowed_users.
