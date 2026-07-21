@@ -26,6 +26,18 @@ export const PALETTE = {
   bf: "#b5651d",
 };
 
+// Distinct-ish color cycle for charts with many series (e.g. up to ~21
+// facilities). Colors repeat past the length of the ring — unavoidable with
+// that many lines — but adjacent sites stay visually separable.
+const COLOR_RING = [
+  "#0e7c86", "#d1495b", "#6b8f3e", "#8a5cb0", "#d99a00", "#2e6f95",
+  "#b5651d", "#1f7a8c", "#c0399f", "#4c9a2a", "#e07a5f", "#3d5a80",
+];
+
+export function cycleColor(i: number): string {
+  return COLOR_RING[i % COLOR_RING.length];
+}
+
 const AXIS = { fontSize: 12, fill: "var(--text-muted)" };
 const GRID = "var(--border)";
 
@@ -61,6 +73,7 @@ export function MultiLine<T extends object>({
   height = 300,
   percent = false,
   dateX = false,
+  legend = true,
 }: {
   data: T[];
   xKey: string;
@@ -68,6 +81,7 @@ export function MultiLine<T extends object>({
   height?: number;
   percent?: boolean;
   dateX?: boolean;
+  legend?: boolean;
 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -86,7 +100,7 @@ export function MultiLine<T extends object>({
           width={44}
         />
         <Tooltip {...tooltipStyle()} labelFormatter={dateX ? (v) => fmtWeek(String(v)) : undefined} />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
+        {legend && <Legend wrapperStyle={{ fontSize: 12 }} />}
         {series.map((s) => (
           <Line
             key={s.key}

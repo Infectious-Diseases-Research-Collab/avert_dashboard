@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "AVERT R21 Dashboard",
-    "subtitle": "R21 test-negative malaria vaccine study"
+    "title": "AVERT study",
+    "subtitle": "Assessing Vaccine Effectiveness of R21/Matrix-M across malaria Transmission settings"
   },
   "nav": {
     "overview": "Overview",
@@ -45,6 +45,8 @@
     "weeklyTrends": "Weekly enrollment trends",
     "enrollmentByFacility": "Enrollment by facility",
     "enrollmentByFacilitySub": "Enrolled, cases and controls per facility",
+    "enrollmentTrendsBySite": "Enrollment trends by site",
+    "enrollmentTrendsBySiteSub": "Enrolled, cases and controls over time — one line per site",
     "ageDistribution": "Age distribution",
     "ageDistributionSub": "Enrolled participants, by sex (months)",
     "doses": "Vaccine doses received",

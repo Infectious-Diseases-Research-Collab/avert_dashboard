@@ -108,6 +108,7 @@ export function DashboardShell({
     completedBarcodes: completedSet,
     issues: filteredIssues,
     downloadQuery,
+    siteSelected: mrc !== "all",
   };
 
   const navItems: SectionKey[] = [
@@ -124,13 +125,13 @@ export function DashboardShell({
       {/* Top bar */}
       <header className="sticky top-0 z-20 bg-[var(--surface)] border-b border-[var(--border)]">
         <div className="flex items-center justify-between px-5 h-14">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[var(--primary)] text-[var(--primary-fg)] grid place-items-center font-bold text-sm">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 shrink-0 rounded-lg bg-[var(--primary)] text-[var(--primary-fg)] grid place-items-center font-bold text-sm">
               A
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="font-semibold leading-none">{t("app.title")}</div>
-              <div className="muted text-xs">{t("app.subtitle")}</div>
+              <div className="muted text-xs truncate">{t("app.subtitle")}</div>
             </div>
           </div>
           <div className="flex items-center gap-3">

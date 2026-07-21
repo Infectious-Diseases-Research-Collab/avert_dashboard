@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Card, SectionTitle, StatCard, EmptyState, fmtPct } from "@/components/ui";
-import { MultiLine, MultiBar, PALETTE } from "@/components/charts";
+import { MultiLine, MultiBar, PALETTE, cycleColor } from "@/components/charts";
 import {
   DemographicsTable,
   MatchingTable,
@@ -15,6 +15,7 @@ import {
   computeKpis,
   weeklyTrends,
   enrollmentByFacility,
+  enrollmentTrendsBySite,
   ageDistribution,
   demographics,
   matchingStats,
@@ -36,11 +37,13 @@ interface SectionProps {
   completedBarcodes: Set<string>;
   issues: DataQualityIssue[];
   downloadQuery: string;
+  /** True when the facility filter has a specific site selected (not "all"). */
+  siteSelected: boolean;
 }
 
 // ---------------------------------------------------------------------------
 
-export function OverviewSection({ enrollees, testType, facilityNames }: SectionProps) {
+export function OverviewSection({ enrollees, testType, facilityNames, siteSelected }: SectionProps) {
   const t = useTranslations();
   const kpis = useMemo(() => computeKpis(enrollees, testType), [enrollees, testType]);
   const weekly = useMemo(() => weeklyTrends(enrollees), [enrollees]);
@@ -48,6 +51,14 @@ export function OverviewSection({ enrollees, testType, facilityNames }: SectionP
   const facilities = useMemo(
     () => enrollmentByFacility(enrollees, testType, facilityNames),
     [enrollees, testType, facilityNames],
+  );
+  const trendsBySite = useMemo(
+    () => enrollmentTrendsBySite(enrollees, testType, facilityNames),
+    [enrollees, testType, facilityNames],
+  );
+  const siteSeries = useMemo(
+    () => trendsBySite.sites.map((s, i) => ({ key: s.name, color: cycleColor(i) })),
+    [trendsBySite],
   );
   const ages = useMemo(() => ageDistribution(enrollees), [enrollees]);
   const demog = useMemo(() => demographics(enrollees, testType), [enrollees, testType]);
@@ -83,22 +94,56 @@ export function OverviewSection({ enrollees, testType, facilityNames }: SectionP
         />
       </Card>
 
-      <Card>
-        <SectionTitle
-          title={t("charts.enrollmentByFacility")}
-          subtitle={t("charts.enrollmentByFacilitySub")}
-        />
-        <MultiBar
-          data={facilities as unknown as Record<string, unknown>[]}
-          xKey="name"
-          angledX
-          series={[
-            { key: "enrolled", name: t("charts.enrolledSeries"), color: PALETTE.primary },
-            { key: "cases", name: t("charts.casesSeries"), color: PALETTE.pos },
-            { key: "controls", name: t("charts.controlsSeries"), color: PALETTE.neg },
-          ]}
-        />
-      </Card>
+      {/* Enrollment by facility — all-sites view only (one bar per site). */}
+      {!siteSelected && (
+        <Card>
+          <SectionTitle
+            title={t("charts.enrollmentByFacility")}
+            subtitle={t("charts.enrollmentByFacilitySub")}
+          />
+          <MultiBar
+            data={facilities as unknown as Record<string, unknown>[]}
+            xKey="name"
+            angledX
+            series={[
+              { key: "enrolled", name: t("charts.enrolledSeries"), color: PALETTE.primary },
+              { key: "cases", name: t("charts.casesSeries"), color: PALETTE.pos },
+              { key: "controls", name: t("charts.controlsSeries"), color: PALETTE.neg },
+            ]}
+          />
+        </Card>
+      )}
+
+      {/* Enrollment trends by site — all-sites view only (one line per site). */}
+      {!siteSelected && siteSeries.length > 0 && (
+        <Card>
+          <SectionTitle
+            title={t("charts.enrollmentTrendsBySite")}
+            subtitle={t("charts.enrollmentTrendsBySiteSub")}
+          />
+          <div className="space-y-4">
+            {(
+              [
+                [t("charts.enrolledSeries"), trendsBySite.enrolled, true],
+                [t("charts.casesSeries"), trendsBySite.cases, false],
+                [t("charts.controlsSeries"), trendsBySite.controls, false],
+              ] as const
+            ).map(([label, data, showLegend]) => (
+              <div key={label}>
+                <div className="muted text-xs font-medium mb-1">{label}</div>
+                <MultiLine
+                  data={data}
+                  xKey="week"
+                  dateX
+                  height={220}
+                  legend={showLegend}
+                  series={siteSeries}
+                />
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-5">
         <Card>

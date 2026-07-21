@@ -177,6 +177,77 @@ export function enrollmentByFacility(
 }
 
 // ---------------------------------------------------------------------------
+// Enrollment trends by site (one line per facility, over enrollment weeks)
+// ---------------------------------------------------------------------------
+
+export interface TrendsBySite {
+  sites: { mrc: string; name: string }[];
+  enrolled: Record<string, number | string>[];
+  cases: Record<string, number | string>[];
+  controls: Record<string, number | string>[];
+}
+
+/**
+ * Weekly enrolled / cases / controls counts, one series (column) per facility.
+ * Returns three week-indexed row-sets keyed by facility name, plus the ordered
+ * site list for building chart series. Used in the all-sites Overview view.
+ */
+export function enrollmentTrendsBySite(
+  screened: Enrollee[],
+  testType: TestType,
+  names: Map<string, string>,
+): TrendsBySite {
+  const enrolled = screened.filter(isEnrolled);
+
+  // Sites present, ordered by total enrollment (busiest first).
+  const totals = new Map<string, number>();
+  for (const e of enrolled) totals.set(e.mrc ?? "?", (totals.get(e.mrc ?? "?") ?? 0) + 1);
+  const sites = [...totals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([mrc]) => ({ mrc, name: names.get(mrc) ?? `Site ${mrc}` }));
+
+  // week -> { [siteName]: count } for each metric.
+  const mk = () => new Map<string, Record<string, number | string>>();
+  const enrolledW = mk();
+  const casesW = mk();
+  const controlsW = mk();
+
+  const bump = (
+    m: Map<string, Record<string, number | string>>,
+    week: string,
+    name: string,
+  ) => {
+    let row = m.get(week);
+    if (!row) {
+      row = { week };
+      sites.forEach((s) => (row![s.name] = 0));
+      m.set(week, row);
+    }
+    row[name] = (row[name] as number) + 1;
+  };
+
+  for (const e of enrolled) {
+    const wk = e.enrollment_week ?? weekStart(e.startdate);
+    if (!wk) continue;
+    const name = names.get(e.mrc ?? "?") ?? `Site ${e.mrc}`;
+    bump(enrolledW, wk, name);
+    const r = testResult(e, testType);
+    if (r === 1) bump(casesW, wk, name);
+    if (r === 0) bump(controlsW, wk, name);
+  }
+
+  const sortByWeek = (m: Map<string, Record<string, number | string>>) =>
+    [...m.values()].sort((a, b) => String(a.week).localeCompare(String(b.week)));
+
+  return {
+    sites,
+    enrolled: sortByWeek(enrolledW),
+    cases: sortByWeek(casesW),
+    controls: sortByWeek(controlsW),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Age distribution (stacked by sex, binwidth 2)
 // ---------------------------------------------------------------------------
 

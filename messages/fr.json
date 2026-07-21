@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "Tableau de bord AVERT R21",
-    "subtitle": "Étude test-négatif du vaccin antipaludique R21"
+    "title": "Étude AVERT",
+    "subtitle": "Évaluation de l'efficacité du vaccin R21/Matrix-M selon les niveaux de transmission du paludisme"
   },
   "nav": {
     "overview": "Aperçu",
@@ -45,6 +45,8 @@
     "weeklyTrends": "Tendances hebdomadaires d'inclusion",
     "enrollmentByFacility": "Inclusions par formation sanitaire",
     "enrollmentByFacilitySub": "Inclus, cas et témoins par formation",
+    "enrollmentTrendsBySite": "Tendances d'inclusion par site",
+    "enrollmentTrendsBySiteSub": "Inclus, cas et témoins dans le temps — une ligne par site",
     "ageDistribution": "Distribution de l'âge",
     "ageDistributionSub": "Participants inclus, par sexe (mois)",
     "doses": "Doses de vaccin reçues",

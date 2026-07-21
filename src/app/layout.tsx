@@ -8,8 +8,9 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AVERT R21 Dashboard",
-  description: "R21 test-negative malaria vaccine study monitoring dashboard",
+  title: "AVERT study",
+  description:
+    "Assessing Vaccine Effectiveness of R21/Matrix-M across malaria Transmission settings",
 };
 
 export default async function RootLayout({
