@@ -248,6 +248,70 @@ export function enrollmentTrendsBySite(
 }
 
 // ---------------------------------------------------------------------------
+// Enrollment by village (site-specific view; needs the villages name lookup)
+// ---------------------------------------------------------------------------
+
+// The villages lookup keys on countryid (1=UG, 2=BF) + district/subcounty/
+// parish/village ids (bigint), while enrollee stores country as 'UG'/'BF' and
+// the geo codes as zero-padded text ('02'). Normalize both sides to one key.
+function normCountry(c: string | number | null | undefined): string {
+  const s = String(c ?? "");
+  if (s === "UG") return "1";
+  if (s === "BF") return "2";
+  return s;
+}
+function normCode(x: string | number | null | undefined): string {
+  const n = parseInt(String(x ?? ""), 10);
+  return Number.isNaN(n) ? "" : String(n);
+}
+
+/** Canonical geo key joining an enrollee (or a villages row) to a village name. */
+export function villageGeoKey(
+  country: string | number | null | undefined,
+  district: string | number | null | undefined,
+  subcounty: string | number | null | undefined,
+  parish: string | number | null | undefined,
+  village: string | number | null | undefined,
+): string {
+  return [normCountry(country), normCode(district), normCode(subcounty), normCode(parish), normCode(village)].join("|");
+}
+
+export interface VillageCount {
+  key: string;
+  name: string;
+  enrolled: number;
+  cases: number;
+  controls: number;
+}
+
+export function enrollmentByVillage(
+  screened: Enrollee[],
+  testType: TestType,
+  villageNames: Map<string, string>,
+): VillageCount[] {
+  const map = new Map<string, VillageCount>();
+  for (const e of screened.filter(isEnrolled)) {
+    const key = villageGeoKey(e.country, e.district, e.subcounty, e.parish, e.village);
+    let v = map.get(key);
+    if (!v) {
+      v = {
+        key,
+        name: villageNames.get(key) ?? `Village ${e.village ?? "?"}`,
+        enrolled: 0,
+        cases: 0,
+        controls: 0,
+      };
+      map.set(key, v);
+    }
+    v.enrolled += 1;
+    const r = testResult(e, testType);
+    if (r === 1) v.cases += 1;
+    if (r === 0) v.controls += 1;
+  }
+  return [...map.values()].sort((a, b) => b.enrolled - a.enrolled);
+}
+
+// ---------------------------------------------------------------------------
 // Age distribution (stacked by sex, binwidth 2)
 // ---------------------------------------------------------------------------
 

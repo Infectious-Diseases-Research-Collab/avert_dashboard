@@ -47,6 +47,8 @@
     "enrollmentByFacilitySub": "Inclus, cas et témoins par formation",
     "enrollmentTrendsBySite": "Tendances d'inclusion par site",
     "enrollmentTrendsBySiteSub": "Inclus, cas et témoins dans le temps — une ligne par site",
+    "enrollmentByVillage": "Inclusions par village",
+    "enrollmentByVillageSub": "Inclus, cas et témoins par village",
     "ageDistribution": "Distribution de l'âge",
     "ageDistributionSub": "Participants inclus, par sexe (mois)",
     "doses": "Doses de vaccin reçues",

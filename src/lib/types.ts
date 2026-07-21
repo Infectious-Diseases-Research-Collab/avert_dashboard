@@ -25,6 +25,9 @@ export interface Enrollee {
   subjid: string | null;
   barcode: string | null;
   mrc: string | null;
+  district: string | null;
+  subcounty: string | null;
+  parish: string | null;
   village: string | null;
   startdate: string | null;
   enrollment_week: string | null;

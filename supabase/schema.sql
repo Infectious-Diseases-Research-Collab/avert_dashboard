@@ -329,6 +329,34 @@ create policy dq_select on public.data_quality_issues
   for select to authenticated using (public.auth_can_see(country));
 
 -- ---------------------------------------------------------------------
+-- villages: reference lookup mapping the enrollee geo hierarchy
+-- (countryid 1=UG/2=BF + district/subcounty/parish/village ids) to a village
+-- name. Loaded separately (DataDictionary/villages.csv). Names are not
+-- country-restricted participant data, so any authenticated user may read all
+-- rows — a user only ever joins to their own country's enrollees anyway.
+-- ---------------------------------------------------------------------
+create table if not exists public.villages (
+  countryid    bigint,
+  country      text,
+  districtid   bigint,
+  district     text,
+  subcountyid  bigint,
+  subcounty    text,
+  parishid     bigint,
+  parish       text,
+  villageid    bigint,
+  village      text,
+  mrcid        bigint,
+  mrc          text
+);
+
+alter table public.villages enable row level security;
+
+drop policy if exists villages_select on public.villages;
+create policy villages_select on public.villages
+  for select to authenticated using (true);
+
+-- ---------------------------------------------------------------------
 -- Table-level grants. RLS filters rows, but the role still needs SELECT.
 -- (Supabase grants these to authenticated by default; explicit here so the
 -- schema is self-contained.)
@@ -337,5 +365,5 @@ grant usage on schema public to authenticated, anon;
 grant select on
   public.allowed_users, public.facilities, public.enrollee,
   public.vaccination_status, public.audittrail, public.blood_smear,
-  public.data_quality_issues
+  public.data_quality_issues, public.villages
 to authenticated;

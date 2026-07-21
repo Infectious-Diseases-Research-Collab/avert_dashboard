@@ -755,6 +755,16 @@
           ],
           "using_expr": "auth_can_see(country)",
           "with_check": null
+        },
+        {
+          "table": "villages",
+          "policy": "villages_select",
+          "command": "SELECT",
+          "roles": [
+            "authenticated"
+          ],
+          "using_expr": "true",
+          "with_check": null
         }
       ],
       "rls_status": [

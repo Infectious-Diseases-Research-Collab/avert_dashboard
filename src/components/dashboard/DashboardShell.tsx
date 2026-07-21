@@ -43,12 +43,14 @@ export function DashboardShell({
   enrollees,
   completedBarcodes,
   issues,
+  villageLookup,
 }: {
   profile: Profile;
   facilities: Facility[];
   enrollees: Enrollee[];
   completedBarcodes: string[];
   issues: DataQualityIssue[];
+  villageLookup: [string, string][];
 }) {
   const t = useTranslations();
   const canSwitchCountry = profile.country_access === "BOTH";
@@ -73,6 +75,7 @@ export function DashboardShell({
     () => new Map(facilities.map((f) => [f.mrc, f.name])),
     [facilities],
   );
+  const villageNames = useMemo(() => new Map(villageLookup), [villageLookup]);
 
   const filtered = useMemo(() => {
     return enrollees.filter((e) => {
@@ -105,6 +108,7 @@ export function DashboardShell({
     enrollees: filtered,
     testType,
     facilityNames,
+    villageNames,
     completedBarcodes: completedSet,
     issues: filteredIssues,
     downloadQuery,

@@ -16,6 +16,7 @@ import {
   weeklyTrends,
   enrollmentByFacility,
   enrollmentTrendsBySite,
+  enrollmentByVillage,
   ageDistribution,
   demographics,
   matchingStats,
@@ -34,6 +35,7 @@ interface SectionProps {
   enrollees: Enrollee[];
   testType: TestType;
   facilityNames: Map<string, string>;
+  villageNames: Map<string, string>;
   completedBarcodes: Set<string>;
   issues: DataQualityIssue[];
   downloadQuery: string;
@@ -43,7 +45,13 @@ interface SectionProps {
 
 // ---------------------------------------------------------------------------
 
-export function OverviewSection({ enrollees, testType, facilityNames, siteSelected }: SectionProps) {
+export function OverviewSection({
+  enrollees,
+  testType,
+  facilityNames,
+  villageNames,
+  siteSelected,
+}: SectionProps) {
   const t = useTranslations();
   const kpis = useMemo(() => computeKpis(enrollees, testType), [enrollees, testType]);
   const weekly = useMemo(() => weeklyTrends(enrollees), [enrollees]);
@@ -59,6 +67,10 @@ export function OverviewSection({ enrollees, testType, facilityNames, siteSelect
   const siteSeries = useMemo(
     () => trendsBySite.sites.map((s, i) => ({ key: s.name, color: cycleColor(i) })),
     [trendsBySite],
+  );
+  const villages = useMemo(
+    () => enrollmentByVillage(enrollees, testType, villageNames),
+    [enrollees, testType, villageNames],
   );
   const ages = useMemo(() => ageDistribution(enrollees), [enrollees]);
   const demog = useMemo(() => demographics(enrollees, testType), [enrollees, testType]);
@@ -142,6 +154,26 @@ export function OverviewSection({ enrollees, testType, facilityNames, siteSelect
               </div>
             ))}
           </div>
+        </Card>
+      )}
+
+      {/* Enrollment by village — site-specific view only. */}
+      {siteSelected && villages.length > 0 && (
+        <Card>
+          <SectionTitle
+            title={t("charts.enrollmentByVillage")}
+            subtitle={t("charts.enrollmentByVillageSub")}
+          />
+          <MultiBar
+            data={villages as unknown as Record<string, unknown>[]}
+            xKey="name"
+            angledX
+            series={[
+              { key: "enrolled", name: t("charts.enrolledSeries"), color: PALETTE.primary },
+              { key: "cases", name: t("charts.casesSeries"), color: PALETTE.pos },
+              { key: "controls", name: t("charts.controlsSeries"), color: PALETTE.neg },
+            ]}
+          />
         </Card>
       )}
 
