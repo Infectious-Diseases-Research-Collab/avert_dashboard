@@ -65,6 +65,12 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+/* Browsers default <button> to the arrow cursor; show the hand so buttons
+   (including link-styled ones like "Forgot password?") read as clickable. */
+button:not(:disabled) {
+  cursor: pointer;
+}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
