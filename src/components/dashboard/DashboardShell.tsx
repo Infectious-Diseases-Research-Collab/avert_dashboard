@@ -141,6 +141,12 @@ export function DashboardShell({
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
             <span className="muted text-sm hidden sm:block">{profile.full_name ?? profile.email}</span>
+            <a
+              href="/reset-password"
+              className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] hidden sm:inline-block"
+            >
+              {t("auth.changePassword")}
+            </a>
             <form action="/auth/signout" method="post">
               <button className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)]">
                 {t("nav.signOut")}

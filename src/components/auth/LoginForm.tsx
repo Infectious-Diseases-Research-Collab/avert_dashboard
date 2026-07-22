@@ -20,7 +20,7 @@ const AUTH_STRINGS = { en: enMessages.auth, fr: frMessages.auth } as const;
 export function LoginForm() {
   const t = useTranslations("auth");
   const activeLocale = useLocale() as Locale;
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +55,19 @@ export function LoginForm() {
       // render in the right language from the first paint.
       const locale = await syncLocaleForEmail(supabase);
       const strings = AUTH_STRINGS[locale];
+
+      if (mode === "forgot") {
+        // Same "sent" message whether or not the email exists (no enumeration).
+        // redirectTo has NO query string so it matches an exact Supabase
+        // "Redirect URLs" allowlist entry of `<origin>/auth/callback`
+        // (Supabase appends ?code=... itself after validating). The callback
+        // route defaults its post-exchange redirect to /reset-password.
+        await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        });
+        setNotice(strings.resetEmailSent);
+        return;
+      }
 
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({ email, password });
@@ -91,17 +104,34 @@ export function LoginForm() {
           className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 outline-none focus:border-[var(--primary)]"
         />
       </div>
-      <div>
-        <label className="block text-sm font-medium mb-1">{t("password")}</label>
-        <input
-          type="password"
-          required
-          autoComplete={mode === "signup" ? "new-password" : "current-password"}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 outline-none focus:border-[var(--primary)]"
-        />
-      </div>
+      {mode !== "forgot" && (
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium">{t("password")}</label>
+            {mode === "signin" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("forgot");
+                  setError(null);
+                  setNotice(null);
+                }}
+                className="text-xs muted hover:text-[var(--primary)]"
+              >
+                {t("forgotPassword")}
+              </button>
+            )}
+          </div>
+          <input
+            type="password"
+            required
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 outline-none focus:border-[var(--primary)]"
+          />
+        </div>
+      )}
 
       {error && <p className="text-sm text-[var(--error)]">{error}</p>}
       {notice && <p className="text-sm text-[var(--good)]">{notice}</p>}
@@ -111,19 +141,31 @@ export function LoginForm() {
         disabled={loading}
         className="w-full rounded-lg bg-[var(--primary)] text-[var(--primary-fg)] py-2.5 font-medium disabled:opacity-60"
       >
-        {loading ? t("signingIn") : mode === "signup" ? t("signUpButton") : t("signInButton")}
+        {loading
+          ? mode === "forgot"
+            ? t("sendingResetLink")
+            : t("signingIn")
+          : mode === "forgot"
+            ? t("sendResetLink")
+            : mode === "signup"
+              ? t("signUpButton")
+              : t("signInButton")}
       </button>
 
       <button
         type="button"
         onClick={() => {
-          setMode(mode === "signup" ? "signin" : "signup");
+          setMode(mode === "signin" ? "signup" : "signin");
           setError(null);
           setNotice(null);
         }}
         className="w-full text-sm muted hover:text-[var(--primary)]"
       >
-        {mode === "signup" ? t("toggleToSignIn") : t("toggleToSignUp")}
+        {mode === "forgot"
+          ? t("backToSignIn")
+          : mode === "signup"
+            ? t("toggleToSignIn")
+            : t("toggleToSignUp")}
       </button>
     </form>
   );
