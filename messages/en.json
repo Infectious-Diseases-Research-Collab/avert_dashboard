@@ -43,6 +43,7 @@
   },
   "charts": {
     "weeklyTrends": "Weekly enrollment trends",
+    "dailyTrends": "Daily enrollment trends",
     "dailyView": "Daily view",
     "weeklyView": "Weekly view",
     "enrollmentByFacility": "Enrollment by facility",

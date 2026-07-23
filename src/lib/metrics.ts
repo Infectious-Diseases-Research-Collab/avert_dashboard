@@ -53,6 +53,24 @@ export function pickTrendGranularity(screened: Enrollee[]): TrendGranularity {
   return spanDays <= 42 ? "day" : "week";
 }
 
+/** Every bucket key (day or week start) spanned by the given dates, in order. */
+function bucketKeysInRange(dates: Date[], granularity: TrendGranularity): string[] {
+  if (dates.length === 0) return [];
+  const min = Math.min(...dates.map((d) => d.getTime()));
+  const max = Math.max(...dates.map((d) => d.getTime()));
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  for (let t = min; t <= max; t += MS_DAY) {
+    const s = new Date(t).toISOString().slice(0, 10);
+    const key = granularity === "day" ? dayStart(s) : weekStart(s);
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      keys.push(key);
+    }
+  }
+  return keys;
+}
+
 export interface HistBin {
   x: number; // left edge
   label: string;
@@ -233,8 +251,23 @@ export function enrollmentTrendsBySite(
     .sort((a, b) => b[1] - a[1])
     .map(([mrc]) => ({ mrc, name: names.get(mrc) ?? `Site ${mrc}` }));
 
+  // Every metric shares the same bucket range so the three panels line up on
+  // the same x-axis, even for buckets where one metric (e.g. cases) is zero.
+  const buckets = bucketKeysInRange(
+    enrolled.map((e) => parseDate(e.startdate)).filter((d): d is Date => d !== null),
+    granularity,
+  );
+
   // week -> { [siteName]: count } for each metric.
-  const mk = () => new Map<string, Record<string, number | string>>();
+  const mk = () => {
+    const m = new Map<string, Record<string, number | string>>();
+    for (const wk of buckets) {
+      const row: Record<string, number | string> = { week: wk };
+      sites.forEach((s) => (row[s.name] = 0));
+      m.set(wk, row);
+    }
+    return m;
+  };
   const enrolledW = mk();
   const casesW = mk();
   const controlsW = mk();
@@ -244,12 +277,8 @@ export function enrollmentTrendsBySite(
     week: string,
     name: string,
   ) => {
-    let row = m.get(week);
-    if (!row) {
-      row = { week };
-      sites.forEach((s) => (row![s.name] = 0));
-      m.set(week, row);
-    }
+    const row = m.get(week);
+    if (!row) return;
     row[name] = (row[name] as number) + 1;
   };
 

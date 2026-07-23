@@ -104,7 +104,7 @@ export function MultiLine<T extends object>({
         {series.map((s) => (
           <Line
             key={s.key}
-            type="monotone"
+            type="linear"
             dataKey={s.key}
             name={s.name ?? s.key}
             stroke={s.color}

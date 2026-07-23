@@ -43,6 +43,7 @@
   },
   "charts": {
     "weeklyTrends": "Tendances hebdomadaires d'inclusion",
+    "dailyTrends": "Tendances quotidiennes d'inclusion",
     "dailyView": "Vue quotidienne",
     "weeklyView": "Vue hebdomadaire",
     "enrollmentByFacility": "Inclusions par formation sanitaire",

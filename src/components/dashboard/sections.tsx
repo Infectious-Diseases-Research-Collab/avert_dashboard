@@ -93,7 +93,10 @@ export function OverviewSection({
       </div>
 
       <Card>
-        <SectionTitle title={t("charts.weeklyTrends")} action={granularityBadge} />
+        <SectionTitle
+          title={t(granularity === "day" ? "charts.dailyTrends" : "charts.weeklyTrends")}
+          action={granularityBadge}
+        />
         <MultiLine
           data={weekly}
           xKey="week"
