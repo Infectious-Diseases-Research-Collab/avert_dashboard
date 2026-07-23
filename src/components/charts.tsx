@@ -111,6 +111,7 @@ export function MultiLine<T extends object>({
           tick={AXIS}
           domain={percent ? [0, 100] : undefined}
           tickFormatter={percent ? (v) => `${v}%` : undefined}
+          allowDecimals={!percent}
           width={44}
         />
         <Tooltip {...tooltipStyle()} labelFormatter={dateX ? (v) => fmtWeek(String(v)) : undefined} />
@@ -164,7 +165,7 @@ export function MultiBar<T extends object>({
           height={angledX ? 60 : 30}
           tickFormatter={dateX ? (v) => fmtWeek(String(v)) : undefined}
         />
-        <YAxis tick={AXIS} width={44} />
+        <YAxis tick={AXIS} allowDecimals={false} width={44} />
         <Tooltip {...tooltipStyle()} labelFormatter={dateX ? (v) => fmtWeek(String(v)) : undefined} />
         {series.length > 1 && <Legend wrapperStyle={{ fontSize: 12 }} />}
         {refLines.map((r) => (

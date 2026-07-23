@@ -56,6 +56,7 @@
     "ageDistributionSub": "Enrolled participants, by sex (months)",
     "doses": "Vaccine doses received",
     "coverageByWeek": "Vaccination coverage by week",
+    "coverageByDay": "Vaccination coverage by day",
     "ageAtVaccination": "Age at vaccination",
     "ageAtVaccinationSub": "Months at each dose (reference lines: 6, 7, 8, 18)",
     "timeSinceLastDose": "Time since last dose (weeks)",

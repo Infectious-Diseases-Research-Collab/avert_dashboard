@@ -56,6 +56,7 @@
     "ageDistributionSub": "Participants inclus, par sexe (mois)",
     "doses": "Doses de vaccin reçues",
     "coverageByWeek": "Couverture vaccinale par semaine",
+    "coverageByDay": "Couverture vaccinale par jour",
     "ageAtVaccination": "Âge à la vaccination",
     "ageAtVaccinationSub": "Mois à chaque dose (lignes de référence : 6, 7, 8, 18)",
     "timeSinceLastDose": "Temps depuis la dernière dose (semaines)",

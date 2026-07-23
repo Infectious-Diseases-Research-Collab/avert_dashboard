@@ -214,8 +214,14 @@ export function OverviewSection({
 export function VaccineCoverageSection({ enrollees }: SectionProps) {
   const t = useTranslations();
   const kpis = useMemo(() => computeKpis(enrollees, "rdt"), [enrollees]);
+  const granularity = useMemo(() => pickTrendGranularity(enrollees), [enrollees]);
+  const granularityBadge = (
+    <span className="muted text-xs rounded-full border border-[var(--border)] px-2 py-0.5 whitespace-nowrap">
+      {t(granularity === "day" ? "charts.dailyView" : "charts.weeklyView")}
+    </span>
+  );
   const doses = useMemo(() => doseDistribution(enrollees), [enrollees]);
-  const coverage = useMemo(() => coverageByWeek(enrollees), [enrollees]);
+  const coverage = useMemo(() => coverageByWeek(enrollees, granularity), [enrollees, granularity]);
   const ageVax = useMemo(() => ageAtVaccination(enrollees), [enrollees]);
   const sinceLast = useMemo(() => timeSinceLastDose(enrollees), [enrollees]);
   const between = useMemo(() => timeBetweenDoses(enrollees), [enrollees]);
@@ -241,7 +247,10 @@ export function VaccineCoverageSection({ enrollees }: SectionProps) {
           />
         </Card>
         <Card>
-          <SectionTitle title={t("charts.coverageByWeek")} />
+          <SectionTitle
+            title={t(granularity === "day" ? "charts.coverageByDay" : "charts.coverageByWeek")}
+            action={granularityBadge}
+          />
           <MultiLine
             data={coverage}
             xKey="week"

@@ -513,10 +513,10 @@ export function doseDistribution(screened: Enrollee[]) {
     }));
 }
 
-export function coverageByWeek(screened: Enrollee[]) {
+export function coverageByWeek(screened: Enrollee[], granularity: TrendGranularity = "week") {
   const map = new Map<string, { week: string; n: number; d1: number; d3: number }>();
   for (const e of screened.filter(isEnrolled)) {
-    const wk = e.enrollment_week ?? weekStart(e.startdate);
+    const wk = granularity === "day" ? dayStart(e.startdate) : (e.enrollment_week ?? weekStart(e.startdate));
     if (!wk) continue;
     let p = map.get(wk);
     if (!p) {
