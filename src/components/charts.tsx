@@ -57,7 +57,7 @@ function tooltipStyle() {
 export function fmtWeek(s: string) {
   const d = new Date(s);
   if (isNaN(d.getTime())) return s;
-  return d.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
+  return d.toLocaleDateString(undefined, { day: "2-digit", month: "short", timeZone: "UTC" });
 }
 
 export interface Series {

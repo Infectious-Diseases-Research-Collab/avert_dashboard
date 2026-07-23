@@ -17,6 +17,7 @@ import {
   enrollmentByFacility,
   enrollmentTrendsBySite,
   enrollmentByVillage,
+  pickTrendGranularity,
   ageDistribution,
   demographics,
   matchingStats,
@@ -54,15 +55,21 @@ export function OverviewSection({
 }: SectionProps) {
   const t = useTranslations();
   const kpis = useMemo(() => computeKpis(enrollees, testType), [enrollees, testType]);
-  const weekly = useMemo(() => weeklyTrends(enrollees), [enrollees]);
+  const granularity = useMemo(() => pickTrendGranularity(enrollees), [enrollees]);
+  const granularityBadge = (
+    <span className="muted text-xs rounded-full border border-[var(--border)] px-2 py-0.5 whitespace-nowrap">
+      {t(granularity === "day" ? "charts.dailyView" : "charts.weeklyView")}
+    </span>
+  );
+  const weekly = useMemo(() => weeklyTrends(enrollees, granularity), [enrollees, granularity]);
   const hasMicro = weekly.some((w) => w["Micro+"] + w["Micro-"] > 0);
   const facilities = useMemo(
     () => enrollmentByFacility(enrollees, testType, facilityNames),
     [enrollees, testType, facilityNames],
   );
   const trendsBySite = useMemo(
-    () => enrollmentTrendsBySite(enrollees, testType, facilityNames),
-    [enrollees, testType, facilityNames],
+    () => enrollmentTrendsBySite(enrollees, testType, facilityNames, granularity),
+    [enrollees, testType, facilityNames, granularity],
   );
   const siteSeries = useMemo(
     () => trendsBySite.sites.map((s, i) => ({ key: s.name, color: cycleColor(i) })),
@@ -86,7 +93,7 @@ export function OverviewSection({
       </div>
 
       <Card>
-        <SectionTitle title={t("charts.weeklyTrends")} />
+        <SectionTitle title={t("charts.weeklyTrends")} action={granularityBadge} />
         <MultiLine
           data={weekly}
           xKey="week"
@@ -132,6 +139,7 @@ export function OverviewSection({
           <SectionTitle
             title={t("charts.enrollmentTrendsBySite")}
             subtitle={t("charts.enrollmentTrendsBySiteSub")}
+            action={granularityBadge}
           />
           <div className="grid lg:grid-cols-3 gap-4">
             {(

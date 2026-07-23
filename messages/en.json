@@ -43,6 +43,8 @@
   },
   "charts": {
     "weeklyTrends": "Weekly enrollment trends",
+    "dailyView": "Daily view",
+    "weeklyView": "Weekly view",
     "enrollmentByFacility": "Enrollment by facility",
     "enrollmentByFacilitySub": "Enrolled, cases and controls per facility",
     "enrollmentTrendsBySite": "Enrollment trends by site",

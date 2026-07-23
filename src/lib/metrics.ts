@@ -27,6 +27,32 @@ export function weekStart(s: string | null): string | null {
   return w.toISOString().slice(0, 10);
 }
 
+/** UTC-normalized calendar day (no floor beyond the day itself). */
+export function dayStart(s: string | null): string | null {
+  const d = parseDate(s);
+  if (!d) return null;
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+    .toISOString()
+    .slice(0, 10);
+}
+
+export type TrendGranularity = "day" | "week";
+
+/**
+ * Daily buckets read better than 1-2 sparse weekly points early in a study;
+ * once there's enough history, weekly buckets are smoother. Base the choice
+ * on the actual span of the data (not the from/to filter window) so it also
+ * adapts correctly when a user manually narrows the date filter.
+ */
+export function pickTrendGranularity(screened: Enrollee[]): TrendGranularity {
+  const dates = screened.map((e) => parseDate(e.startdate)).filter((d): d is Date => d !== null);
+  if (dates.length === 0) return "week";
+  const min = Math.min(...dates.map((d) => d.getTime()));
+  const max = Math.max(...dates.map((d) => d.getTime()));
+  const spanDays = (max - min) / MS_DAY;
+  return spanDays <= 42 ? "day" : "week";
+}
+
 export interface HistBin {
   x: number; // left edge
   label: string;
@@ -118,7 +144,7 @@ export interface WeeklyPoint {
   "Micro-": number;
 }
 
-export function weeklyTrends(screened: Enrollee[]): WeeklyPoint[] {
+export function weeklyTrends(screened: Enrollee[], granularity: TrendGranularity = "week"): WeeklyPoint[] {
   const map = new Map<string, WeeklyPoint>();
   const get = (wk: string) => {
     let p = map.get(wk);
@@ -129,7 +155,7 @@ export function weeklyTrends(screened: Enrollee[]): WeeklyPoint[] {
     return p;
   };
   for (const e of screened) {
-    const wk = e.enrollment_week ?? weekStart(e.startdate);
+    const wk = granularity === "day" ? dayStart(e.startdate) : (e.enrollment_week ?? weekStart(e.startdate));
     if (!wk) continue;
     get(wk).Screened += 1;
     if (!isEnrolled(e)) continue;
@@ -196,6 +222,7 @@ export function enrollmentTrendsBySite(
   screened: Enrollee[],
   testType: TestType,
   names: Map<string, string>,
+  granularity: TrendGranularity = "week",
 ): TrendsBySite {
   const enrolled = screened.filter(isEnrolled);
 
@@ -227,7 +254,7 @@ export function enrollmentTrendsBySite(
   };
 
   for (const e of enrolled) {
-    const wk = e.enrollment_week ?? weekStart(e.startdate);
+    const wk = granularity === "day" ? dayStart(e.startdate) : (e.enrollment_week ?? weekStart(e.startdate));
     if (!wk) continue;
     const name = names.get(e.mrc ?? "?") ?? `Site ${e.mrc}`;
     bump(enrolledW, wk, name);
