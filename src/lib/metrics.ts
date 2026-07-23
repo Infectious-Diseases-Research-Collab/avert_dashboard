@@ -50,7 +50,7 @@ export function pickTrendGranularity(screened: Enrollee[]): TrendGranularity {
   const min = Math.min(...dates.map((d) => d.getTime()));
   const max = Math.max(...dates.map((d) => d.getTime()));
   const spanDays = (max - min) / MS_DAY;
-  return spanDays <= 42 ? "day" : "week";
+  return spanDays <= 28 ? "day" : "week";
 }
 
 /** Every bucket key (day or week start) spanned by the given dates, in order. */
