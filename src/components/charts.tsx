@@ -66,6 +66,20 @@ export interface Series {
   name?: string;
 }
 
+/** A single legend shared across several charts, wrapping to fill the width. */
+export function ChartLegend({ series }: { series: Series[] }) {
+  return (
+    <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-3 text-xs">
+      {series.map((s) => (
+        <span key={s.key} className="inline-flex items-center gap-1.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
+          <span className="muted">{s.name ?? s.key}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function MultiLine<T extends object>({
   data,
   xKey,

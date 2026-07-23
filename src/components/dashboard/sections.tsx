@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Card, SectionTitle, StatCard, EmptyState, fmtPct } from "@/components/ui";
-import { MultiLine, MultiBar, PALETTE, cycleColor } from "@/components/charts";
+import { MultiLine, MultiBar, ChartLegend, PALETTE, cycleColor } from "@/components/charts";
 import {
   DemographicsTable,
   MatchingTable,
@@ -147,24 +147,18 @@ export function OverviewSection({
           <div className="grid lg:grid-cols-3 gap-4">
             {(
               [
-                [t("charts.enrolledSeries"), trendsBySite.enrolled, true],
-                [t("charts.casesSeries"), trendsBySite.cases, false],
-                [t("charts.controlsSeries"), trendsBySite.controls, false],
+                [t("charts.enrolledSeries"), trendsBySite.enrolled],
+                [t("charts.casesSeries"), trendsBySite.cases],
+                [t("charts.controlsSeries"), trendsBySite.controls],
               ] as const
-            ).map(([label, data, showLegend]) => (
+            ).map(([label, data]) => (
               <div key={label}>
                 <div className="muted text-xs font-medium mb-1">{label}</div>
-                <MultiLine
-                  data={data}
-                  xKey="week"
-                  dateX
-                  height={220}
-                  legend={showLegend}
-                  series={siteSeries}
-                />
+                <MultiLine data={data} xKey="week" dateX height={220} legend={false} series={siteSeries} />
               </div>
             ))}
           </div>
+          <ChartLegend series={siteSeries} />
         </Card>
       )}
 
