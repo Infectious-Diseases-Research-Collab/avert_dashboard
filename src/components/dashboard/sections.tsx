@@ -133,7 +133,7 @@ export function OverviewSection({
             title={t("charts.enrollmentTrendsBySite")}
             subtitle={t("charts.enrollmentTrendsBySiteSub")}
           />
-          <div className="space-y-4">
+          <div className="grid lg:grid-cols-3 gap-4">
             {(
               [
                 [t("charts.enrolledSeries"), trendsBySite.enrolled, true],
