@@ -37,6 +37,17 @@ function daysAgoISO(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Format a run timestamp in UTC so it reads the same for every viewer. */
+function fmtDataPull(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ` +
+    `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`
+  );
+}
+
 export function DashboardShell({
   profile,
   facilities,
@@ -44,6 +55,7 @@ export function DashboardShell({
   completedBarcodes,
   issues,
   villageLookup,
+  lastDataPull,
 }: {
   profile: Profile;
   facilities: Facility[];
@@ -51,6 +63,7 @@ export function DashboardShell({
   completedBarcodes: string[];
   issues: DataQualityIssue[];
   villageLookup: [string, string][];
+  lastDataPull: string | null;
 }) {
   const t = useTranslations();
   const canSwitchCountry = profile.country_access === "BOTH";
@@ -218,6 +231,12 @@ export function DashboardShell({
               <option value="microscopy">{t("filters.microscopy")}</option>
             </select>
           </Field>
+          <div className="ml-auto self-end muted text-xs">
+            {t("app.lastDataPull")}:{" "}
+            <span className="font-medium text-[var(--text)]">
+              {lastDataPull ? fmtDataPull(lastDataPull) : "—"}
+            </span>
+          </div>
         </div>
       </div>
 

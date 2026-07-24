@@ -69,12 +69,13 @@ export function Badge({
   tone = "neutral",
 }: {
   children: React.ReactNode;
-  tone?: "neutral" | "open" | "resolved" | "error" | "warning" | "info";
+  tone?: "neutral" | "open" | "resolved" | "dismissed" | "error" | "warning" | "info";
 }) {
   const tones: Record<string, string> = {
     neutral: "bg-[var(--surface-2)] text-[var(--text-muted)]",
     open: "bg-[color-mix(in_srgb,var(--warn)_18%,transparent)] text-[var(--warn)]",
     resolved: "bg-[color-mix(in_srgb,var(--good)_18%,transparent)] text-[var(--good)]",
+    dismissed: "bg-[var(--surface-2)] text-[var(--text-muted)]",
     error: "bg-[color-mix(in_srgb,var(--error)_18%,transparent)] text-[var(--error)]",
     warning: "bg-[color-mix(in_srgb,var(--warn)_18%,transparent)] text-[var(--warn)]",
     info: "bg-[color-mix(in_srgb,var(--neg)_18%,transparent)] text-[var(--neg)]",

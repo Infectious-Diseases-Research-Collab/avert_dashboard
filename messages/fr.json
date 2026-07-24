@@ -1,7 +1,8 @@
 {
   "app": {
     "title": "Étude AVERT",
-    "subtitle": "Évaluation de l'efficacité du vaccin R21/Matrix-M selon les niveaux de transmission du paludisme"
+    "subtitle": "Évaluation de l'efficacité du vaccin R21/Matrix-M selon les niveaux de transmission du paludisme",
+    "lastDataPull": "Dernière extraction"
   },
   "nav": {
     "overview": "Aperçu",
@@ -116,6 +117,7 @@
     "intro": "Contrôles automatisés dérivés des règles de validation de l'enquête. Les problèmes se rouvrent s'ils réapparaissent et se résolvent automatiquement une fois les données corrigées.",
     "open": "Ouvert",
     "resolved": "Résolu",
+    "dismissed": "Écarté",
     "all": "Tous",
     "status": "Statut",
     "severity": "Gravité",
@@ -124,13 +126,18 @@
     "detected": "Détecté",
     "resolvedAt": "Résolu le",
     "noIssues": "Aucun problème trouvé.",
-    "search": "Rechercher"
+    "search": "Rechercher",
+    "actions": "Actions",
+    "dismiss": "Écarter",
+    "reopen": "Rouvrir",
+    "downloadErrors": "Télécharger les erreurs (CSV)"
   },
   "download": {
     "title": "Télécharger les données",
     "intro": "Exporter les enregistrements visibles au format CSV. Les exports respectent votre accès par pays.",
     "enrollee": "Données d'inclusion",
     "vaccinationStatus": "Données de statut vaccinal",
+    "barcodes": "Comparaison des codes-barres (déployés vs utilisés)",
     "button": "Télécharger CSV"
   },
   "auth": {

@@ -53,19 +53,25 @@ export default async function DashboardPage() {
 
   const supabase = await createClient();
 
-  const [facilitiesRes, enrolleeRes, bloodRes, coverageRes, issuesRes, villageRows] =
+  const [facilitiesRes, enrolleeRes, bloodRes, coverageRes, issuesRes, lastRunRes, villageRows] =
     await Promise.all([
       supabase.from("facilities").select("*"),
       supabase.from("enrollee").select(ENROLLEE_COLS).limit(20000),
       supabase.from("blood_smear").select("barcode,parasitedensity,mic_positive,slidequality"),
       supabase.from("vaccination_status").select("barcode"),
       supabase.from("data_quality_issues").select("*").order("detected_at", { ascending: false }),
+      supabase
+        .from("pipeline_runs")
+        .select("finished_at")
+        .order("finished_at", { ascending: false })
+        .limit(1),
       fetchVillages(supabase, visibleCountries(profile)),
     ]);
 
   const facilities = (facilitiesRes.data ?? []) as Facility[];
   const enrollees = (enrolleeRes.data ?? []) as unknown as Enrollee[];
   const issues = (issuesRes.data ?? []) as DataQualityIssue[];
+  const lastDataPull = (lastRunRes.data?.[0]?.finished_at as string | undefined) ?? null;
 
   // Village-name lookup keyed by the canonical geo key. Passed to the client as
   // a serializable [key, name][] array; DashboardShell rebuilds the Map.
@@ -99,6 +105,7 @@ export default async function DashboardPage() {
       completedBarcodes={completedBarcodes}
       issues={issues}
       villageLookup={villageLookup}
+      lastDataPull={lastDataPull}
     />
   );
 }

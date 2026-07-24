@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge, fmtNum, fmtPct } from "@/components/ui";
+import { createClient } from "@/lib/supabase/client";
 import type { DataQualityIssue } from "@/lib/types";
 import type { DemogColumn, MatchScenario, Concordance } from "@/lib/metrics";
 
@@ -193,16 +194,34 @@ export function DataQualityTable({
 }) {
   const t = useTranslations();
   const locale = useLocale();
-  const [status, setStatus] = useState<"open" | "resolved" | "all">("open");
+  const [status, setStatus] = useState<"open" | "resolved" | "dismissed" | "all">("open");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({
     key: "detected_at",
     dir: -1,
   });
+  // Optimistic overlay of status changes made this session (issue id -> status),
+  // so a dismissed/reopened row updates immediately without refetching.
+  const [overrides, setOverrides] = useState<Map<number, DataQualityIssue["status"]>>(new Map());
+  const [pending, setPending] = useState<Set<number>>(new Set());
+
+  const effStatus = (i: DataQualityIssue) => overrides.get(i.id) ?? i.status;
+
+  async function changeStatus(id: number, next: "open" | "dismissed") {
+    setPending((p) => new Set(p).add(id));
+    const supabase = createClient();
+    const { error } = await supabase.rpc("set_issue_status", { p_id: id, p_status: next });
+    setPending((p) => {
+      const n = new Set(p);
+      n.delete(id);
+      return n;
+    });
+    if (!error) setOverrides((m) => new Map(m).set(id, next));
+  }
 
   const filtered = useMemo(() => {
     let rows = issues;
-    if (status !== "all") rows = rows.filter((i) => i.status === status);
+    if (status !== "all") rows = rows.filter((i) => (overrides.get(i.id) ?? i.status) === status);
     if (q.trim()) {
       const needle = q.toLowerCase();
       rows = rows.filter((i) =>
@@ -215,10 +234,13 @@ export function DataQualityTable({
     return [...rows].sort((a, b) => {
       let cmp = 0;
       if (sort.key === "severity") cmp = order[a.severity] - order[b.severity];
+      else if (sort.key === "status") cmp = effStatus(a).localeCompare(effStatus(b));
       else cmp = String(a[sort.key]).localeCompare(String(b[sort.key]));
       return cmp * sort.dir;
     });
-  }, [issues, status, q, sort]);
+    // effStatus/overrides intentionally drive re-sort/re-filter on change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [issues, status, q, sort, overrides]);
 
   function toggleSort(key: SortKey) {
     setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 }));
@@ -238,7 +260,7 @@ export function DataQualityTable({
     <div>
       <div className="flex flex-wrap items-center gap-3 mb-3">
         <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
-          {(["open", "resolved", "all"] as const).map((s) => (
+          {(["open", "resolved", "dismissed", "all"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setStatus(s)}
@@ -272,26 +294,40 @@ export function DataQualityTable({
                 <Th>{t("tables.description")}</Th>
                 <SortTh k="status">{t("dataQuality.status")}</SortTh>
                 <SortTh k="detected_at">{t("dataQuality.detected")}</SortTh>
+                <Th>{t("dataQuality.actions")}</Th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((i) => (
-                <tr key={i.id}>
-                  <Td>
-                    <Badge tone={i.severity}>{i.severity}</Badge>
-                  </Td>
-                  <Td className="font-mono text-xs">{i.check_code}</Td>
-                  <Td>{i.subjid ?? i.barcode ?? "—"}</Td>
-                  <Td>{i.mrc ? (facilityNames.get(i.mrc) ?? i.mrc) : "—"}</Td>
-                  <Td className="max-w-[380px] whitespace-normal">
-                    {locale === "fr" ? i.description_fr : i.description}
-                  </Td>
-                  <Td>
-                    <Badge tone={i.status}>{t(`dataQuality.${i.status}`)}</Badge>
-                  </Td>
-                  <Td className="text-xs">{i.detected_at.slice(0, 10)}</Td>
-                </tr>
-              ))}
+              {filtered.map((i) => {
+                const st = effStatus(i);
+                const busy = pending.has(i.id);
+                return (
+                  <tr key={i.id}>
+                    <Td>
+                      <Badge tone={i.severity}>{i.severity}</Badge>
+                    </Td>
+                    <Td className="font-mono text-xs">{i.check_code}</Td>
+                    <Td>{i.subjid ?? i.barcode ?? "—"}</Td>
+                    <Td>{i.mrc ? (facilityNames.get(i.mrc) ?? i.mrc) : "—"}</Td>
+                    <Td className="max-w-[380px] whitespace-normal">
+                      {locale === "fr" ? i.description_fr : i.description}
+                    </Td>
+                    <Td>
+                      <Badge tone={st}>{t(`dataQuality.${st}`)}</Badge>
+                    </Td>
+                    <Td className="text-xs">{i.detected_at.slice(0, 10)}</Td>
+                    <Td>
+                      <button
+                        onClick={() => changeStatus(i.id, st === "dismissed" ? "open" : "dismissed")}
+                        disabled={busy}
+                        className="text-xs rounded-md border border-[var(--border)] px-2 py-1 hover:bg-[var(--surface-2)] disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {st === "dismissed" ? t("dataQuality.reopen") : t("dataQuality.dismiss")}
+                      </button>
+                    </Td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

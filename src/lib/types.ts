@@ -72,7 +72,9 @@ export interface DataQualityIssue {
   field: string | null;
   description: string;
   description_fr: string;
-  status: "open" | "resolved";
+  status: "open" | "resolved" | "dismissed";
   detected_at: string;
   resolved_at: string | null;
+  dismissed_at?: string | null;
+  dismissed_by?: string | null;
 }

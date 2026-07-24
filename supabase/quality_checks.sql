@@ -218,21 +218,40 @@ begin
   where nullif(e.raw->>'consent2','') is not null and (e.raw->>'consent2')::numeric <> 1
 
   union all
-  -- 18. Possible duplicate participant: similar name, same facility.
-  -- Approximates the source script's Jaro-Winkler name matching using
-  -- trigram similarity (pg_trgm) within the same country + facility.
+  -- 18. Possible duplicate participant: SAME date of birth AND a near-identical
+  -- name, within the same country + facility. Tightened from the earlier
+  -- similarity>0.45 (too noisy): now requires an exact DOB match plus a name
+  -- trigram distance (1 - pg_trgm similarity) <= 0.075, i.e. similarity >= 0.925
+  -- (all but identical). a.barcode < b.barcode makes each pair fire once.
   select a.country, 'possible_duplicate_name', 'warning',
          a.subjid, a.barcode, a.mrc, 'participantsname',
-         format('Participant name closely matches barcode %s at the same facility (similarity %s).',
-                b.barcode, round(similarity(upper(a.raw->>'participantsname'), upper(b.raw->>'participantsname'))::numeric, 2)),
-         format('Le nom du participant correspond étroitement au code-barres %s dans la même formation sanitaire (similarité %s).',
-                b.barcode, round(similarity(upper(a.raw->>'participantsname'), upper(b.raw->>'participantsname'))::numeric, 2))
+         format('Participant has the same date of birth and a near-identical name to barcode %s at the same facility (name distance %s).',
+                b.barcode, round((1 - similarity(upper(a.raw->>'participantsname'), upper(b.raw->>'participantsname')))::numeric, 3)),
+         format('Le participant a la même date de naissance et un nom quasi identique au code-barres %s dans la même formation sanitaire (distance du nom %s).',
+                b.barcode, round((1 - similarity(upper(a.raw->>'participantsname'), upper(b.raw->>'participantsname')))::numeric, 3))
   from enrolled a
   join enrolled b
     on a.country = b.country and a.mrc = b.mrc and a.barcode < b.barcode
-  where nullif(a.raw->>'participantsname','') is not null
+  where a.dob is not null and a.dob = b.dob
+    and nullif(a.raw->>'participantsname','') is not null
     and nullif(b.raw->>'participantsname','') is not null
-    and similarity(upper(a.raw->>'participantsname'), upper(b.raw->>'participantsname')) > 0.45;
+    and (1 - similarity(upper(a.raw->>'participantsname'), upper(b.raw->>'participantsname'))) <= 0.075
+
+  union all
+  -- 19. Enrollee barcode not on the deployed/allocated list for its country.
+  -- Only evaluated for a country that actually has a deployed list loaded, so
+  -- an empty or not-yet-populated deployed_barcodes table never floods issues.
+  select e.country, 'barcode_not_deployed', 'error',
+         e.subjid, e.barcode, e.mrc, 'barcode',
+         format('Barcode %s is not on the deployed barcode list for %s.', e.barcode, e.country),
+         format('Le code-barres %s ne figure pas sur la liste des codes-barres déployés pour %s.', e.barcode, e.country)
+  from enrolled e
+  where e.barcode is not null and e.barcode <> ''
+    and exists (select 1 from public.deployed_barcodes d where d.country = e.country)
+    and not exists (
+      select 1 from public.deployed_barcodes d
+      where d.country = e.country and d.barcode = e.barcode
+    );
 
   select count(*) into n_firing from _firing;
 
@@ -251,7 +270,10 @@ begin
     status         = 'open',
     detected_at    = case when data_quality_issues.status = 'resolved'
                           then now() else data_quality_issues.detected_at end,
-    resolved_at    = null;
+    resolved_at    = null
+  -- Never disturb a manually dismissed issue: a user reviewed it and marked it
+  -- "not a problem", so even if it keeps firing it stays out of the open list.
+  where data_quality_issues.status <> 'dismissed';
 
   -- Resolve open issues that no longer fire.
   update public.data_quality_issues d

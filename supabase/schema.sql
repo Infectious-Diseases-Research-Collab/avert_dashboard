@@ -143,9 +143,14 @@ create table if not exists public.data_quality_issues (
   field          text,
   description    text not null,
   description_fr text not null,
-  status         text not null default 'open' check (status in ('open','resolved')),
+  -- 'open'/'resolved' are machine-driven by refresh_quality_issues(); 'dismissed'
+  -- is a manual "reviewed, not a real problem" state set via set_issue_status()
+  -- and preserved across refreshes (the refresh never overwrites a dismissed row).
+  status         text not null default 'open' check (status in ('open','resolved','dismissed')),
   detected_at    timestamptz not null default now(),
-  resolved_at    timestamptz
+  resolved_at    timestamptz,
+  dismissed_at   timestamptz,
+  dismissed_by   text
 );
 -- Stable identity so re-running the check pass reopens/resolves rather than duplicates.
 create unique index if not exists dq_identity_idx on public.data_quality_issues (
@@ -153,6 +158,16 @@ create unique index if not exists dq_identity_idx on public.data_quality_issues 
 );
 create index if not exists dq_status_idx on public.data_quality_issues (status);
 create index if not exists dq_country_idx on public.data_quality_issues (country);
+
+-- Idempotent migration for existing databases: `create table if not exists`
+-- above is a no-op once the table exists, so evolve the shape explicitly.
+alter table public.data_quality_issues
+  add column if not exists dismissed_at timestamptz,
+  add column if not exists dismissed_by text;
+alter table public.data_quality_issues
+  drop constraint if exists data_quality_issues_status_check;
+alter table public.data_quality_issues
+  add constraint data_quality_issues_status_check check (status in ('open','resolved','dismissed'));
 
 -- =====================================================================
 -- Auth helpers
@@ -253,6 +268,35 @@ as $$
 $$;
 
 grant execute on function public.get_my_profile() to authenticated;
+
+-- Set the status of a data-quality issue (dismiss a reviewed non-issue, or
+-- reopen one). security definer because the issues table is otherwise
+-- read-only to authenticated users (writes go through the service-role loader);
+-- this narrow function is the only authenticated write path. It only touches a
+-- row the caller is allowed to see (auth_can_see on the row's country) and only
+-- allows the two manual states — it can never set 'resolved' (machine-only).
+-- 'dismissed' survives pipeline refreshes (refresh_quality_issues skips it).
+create or replace function public.set_issue_status(p_id bigint, p_status text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_status not in ('open','dismissed') then
+    raise exception 'Invalid status %, expected open or dismissed', p_status
+      using errcode = 'check_violation';
+  end if;
+  update public.data_quality_issues d
+  set status       = p_status,
+      dismissed_at = case when p_status = 'dismissed' then now() else null end,
+      dismissed_by = case when p_status = 'dismissed' then public.auth_email() else null end
+  where d.id = p_id
+    and public.auth_can_see(d.country);
+end;
+$$;
+
+grant execute on function public.set_issue_status(bigint, text) to authenticated;
 
 -- =====================================================================
 -- Signup allowlist gate
@@ -357,6 +401,44 @@ create policy villages_select on public.villages
   for select to authenticated using (true);
 
 -- ---------------------------------------------------------------------
+-- pipeline_runs: one row appended by the loader at the end of each successful
+-- pipeline run, so the dashboard can show a "last data pull" freshness time.
+-- (updated_at defaults only fire on INSERT and never advance on re-upsert, so
+-- they can't serve as a run timestamp.) Not country-restricted — it's only a
+-- clock — so any authenticated user may read all rows.
+-- ---------------------------------------------------------------------
+create table if not exists public.pipeline_runs (
+  id          bigint generated always as identity primary key,
+  finished_at timestamptz not null default now(),
+  n_enrollee  integer,
+  note        text
+);
+
+alter table public.pipeline_runs enable row level security;
+
+drop policy if exists pipeline_runs_select on public.pipeline_runs;
+create policy pipeline_runs_select on public.pipeline_runs
+  for select to authenticated using (true);
+
+-- ---------------------------------------------------------------------
+-- deployed_barcodes: the pre-defined per-country list of barcodes issued to
+-- the field. Populated separately (uploaded by the study team). Used by the
+-- 'barcode_not_deployed' quality check to flag enrollee barcodes that aren't
+-- on the allocated list. Read scoped by country access.
+-- ---------------------------------------------------------------------
+create table if not exists public.deployed_barcodes (
+  barcode text primary key,
+  country text not null check (country in ('UG','BF'))
+);
+create index if not exists deployed_barcodes_country_idx on public.deployed_barcodes (country);
+
+alter table public.deployed_barcodes enable row level security;
+
+drop policy if exists deployed_barcodes_select on public.deployed_barcodes;
+create policy deployed_barcodes_select on public.deployed_barcodes
+  for select to authenticated using (public.auth_can_see(country));
+
+-- ---------------------------------------------------------------------
 -- Table-level grants. RLS filters rows, but the role still needs SELECT.
 -- (Supabase grants these to authenticated by default; explicit here so the
 -- schema is self-contained.)
@@ -365,5 +447,6 @@ grant usage on schema public to authenticated, anon;
 grant select on
   public.allowed_users, public.facilities, public.enrollee,
   public.vaccination_status, public.audittrail, public.blood_smear,
-  public.data_quality_issues, public.villages
+  public.data_quality_issues, public.villages,
+  public.pipeline_runs, public.deployed_barcodes
 to authenticated;

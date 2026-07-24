@@ -419,11 +419,22 @@ export function VerificationSection({
 
 // ---------------------------------------------------------------------------
 
-export function DataQualitySection({ issues, facilityNames }: SectionProps) {
+export function DataQualitySection({ issues, facilityNames, downloadQuery }: SectionProps) {
   const t = useTranslations();
   return (
     <Card>
-      <SectionTitle title={t("dataQuality.title")} subtitle={t("dataQuality.intro")} />
+      <SectionTitle
+        title={t("dataQuality.title")}
+        subtitle={t("dataQuality.intro")}
+        action={
+          <a
+            href={`/api/download/data_quality?${downloadQuery}`}
+            className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
+          >
+            {t("dataQuality.downloadErrors")}
+          </a>
+        }
+      />
       <DataQualityTable issues={issues} facilityNames={facilityNames} />
     </Card>
   );
@@ -439,6 +450,11 @@ export function DownloadSection({ downloadQuery }: SectionProps) {
       key: "vaccination_status",
       label: t("download.vaccinationStatus"),
       href: `/api/download/vaccination_status?${downloadQuery}`,
+    },
+    {
+      key: "barcodes",
+      label: t("download.barcodes"),
+      href: `/api/download/barcodes?${downloadQuery}`,
     },
   ];
   return (
