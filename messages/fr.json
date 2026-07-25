@@ -53,6 +53,7 @@
     "enrollmentByFacilitySub": "Inclus, cas et témoins par formation",
     "enrollmentTrendsBySite": "Tendances d'inclusion par site",
     "enrollmentTrendsBySiteSub": "Inclus, cas et témoins dans le temps — une ligne par site",
+    "enrollmentTrendsBySiteSubGrid": "Inclus, cas et témoins dans le temps — un graphique par site",
     "enrollmentByVillage": "Inclusions par village",
     "enrollmentByVillageSub": "Inclus, cas et témoins par village",
     "ageDistribution": "Distribution de l'âge",

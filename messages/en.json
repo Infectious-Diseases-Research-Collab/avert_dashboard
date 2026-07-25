@@ -53,6 +53,7 @@
     "enrollmentByFacilitySub": "Enrolled, cases and controls per facility",
     "enrollmentTrendsBySite": "Enrollment trends by site",
     "enrollmentTrendsBySiteSub": "Enrolled, cases and controls over time — one line per site",
+    "enrollmentTrendsBySiteSubGrid": "Enrolled, cases and controls over time — one chart per site",
     "enrollmentByVillage": "Enrollment by village",
     "enrollmentByVillageSub": "Enrolled, cases and controls per village",
     "ageDistribution": "Age distribution",

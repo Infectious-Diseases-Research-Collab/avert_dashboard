@@ -151,7 +151,9 @@ export function OverviewSection({
         <Card>
           <SectionTitle
             title={t("charts.enrollmentTrendsBySite")}
-            subtitle={t("charts.enrollmentTrendsBySiteSub")}
+            subtitle={t(
+              trendView === "grid" ? "charts.enrollmentTrendsBySiteSubGrid" : "charts.enrollmentTrendsBySiteSub",
+            )}
             action={
               <div className="flex items-center gap-2">
                 <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
