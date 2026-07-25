@@ -66,6 +66,20 @@ export interface Series {
   name?: string;
 }
 
+/** Max numeric value of `keys` across `rows` — used as a shared y-axis domain
+ * so a grid of small-multiple charts stays visually comparable. Falls back to
+ * 1 rather than 0 so an all-zero/empty series doesn't collapse the domain. */
+export function seriesMax(rows: Record<string, unknown>[], keys: string[]): number {
+  let max = 0;
+  for (const row of rows) {
+    for (const k of keys) {
+      const v = row[k];
+      if (typeof v === "number" && v > max) max = v;
+    }
+  }
+  return max || 1;
+}
+
 /** A single legend shared across several charts, wrapping to fill the width. */
 export function ChartLegend({ series }: { series: Series[] }) {
   return (
@@ -77,6 +91,37 @@ export function ChartLegend({ series }: { series: Series[] }) {
         </span>
       ))}
     </div>
+  );
+}
+
+/** One compact bar sparkline for a small-multiples grid — no visible axes (a
+ * grid of a dozen-plus cells has no room for them), but a Tooltip keeps exact
+ * values available on hover. `domainMax` should be shared across the grid's
+ * cells so bar heights stay comparable from one site to the next. */
+export function MiniBar<T extends object>({
+  data,
+  xKey,
+  dataKey,
+  color,
+  domainMax,
+  height = 72,
+}: {
+  data: T[];
+  xKey: string;
+  dataKey: string;
+  color: string;
+  domainMax: number;
+  height?: number;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} margin={{ top: 2, right: 2, left: 2, bottom: 0 }}>
+        <XAxis dataKey={xKey} hide />
+        <YAxis hide domain={[0, domainMax]} />
+        <Tooltip {...tooltipStyle()} labelFormatter={(v) => fmtWeek(String(v))} />
+        <Bar dataKey={dataKey} fill={color} radius={[2, 2, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 

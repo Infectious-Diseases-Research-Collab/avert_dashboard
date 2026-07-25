@@ -47,6 +47,8 @@
     "dailyTrends": "Tendances quotidiennes d'inclusion",
     "dailyView": "Vue quotidienne",
     "weeklyView": "Vue hebdomadaire",
+    "viewGrid": "Grille",
+    "viewLine": "Courbe",
     "enrollmentByFacility": "Inclusions par formation sanitaire",
     "enrollmentByFacilitySub": "Inclus, cas et témoins par formation",
     "enrollmentTrendsBySite": "Tendances d'inclusion par site",

@@ -47,6 +47,8 @@
     "dailyTrends": "Daily enrollment trends",
     "dailyView": "Daily view",
     "weeklyView": "Weekly view",
+    "viewGrid": "Grid",
+    "viewLine": "Line",
     "enrollmentByFacility": "Enrollment by facility",
     "enrollmentByFacilitySub": "Enrolled, cases and controls per facility",
     "enrollmentTrendsBySite": "Enrollment trends by site",

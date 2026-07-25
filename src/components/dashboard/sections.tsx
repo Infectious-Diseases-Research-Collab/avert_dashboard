@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Card, SectionTitle, StatCard, EmptyState, fmtPct } from "@/components/ui";
-import { MultiLine, MultiBar, ChartLegend, PALETTE, cycleColor } from "@/components/charts";
+import { MultiLine, MultiBar, MiniBar, ChartLegend, seriesMax, PALETTE, cycleColor } from "@/components/charts";
 import {
   DemographicsTable,
   MatchingTable,
@@ -75,6 +75,16 @@ export function OverviewSection({
     () => trendsBySite.sites.map((s, i) => ({ key: s.name, color: cycleColor(i) })),
     [trendsBySite],
   );
+  const [trendView, setTrendView] = useState<"grid" | "line">("grid");
+  const siteNames = useMemo(() => trendsBySite.sites.map((s) => s.name), [trendsBySite]);
+  const trendMax = useMemo(
+    () => ({
+      enrolled: seriesMax(trendsBySite.enrolled, siteNames),
+      cases: seriesMax(trendsBySite.cases, siteNames),
+      controls: seriesMax(trendsBySite.controls, siteNames),
+    }),
+    [trendsBySite, siteNames],
+  );
   const villages = useMemo(
     () => enrollmentByVillage(enrollees, testType, villageNames),
     [enrollees, testType, villageNames],
@@ -136,29 +146,83 @@ export function OverviewSection({
         </Card>
       )}
 
-      {/* Enrollment trends by site — all-sites view only (one line per site). */}
+      {/* Enrollment trends by site — all-sites view only. */}
       {!siteSelected && siteSeries.length > 0 && (
         <Card>
           <SectionTitle
             title={t("charts.enrollmentTrendsBySite")}
             subtitle={t("charts.enrollmentTrendsBySiteSub")}
-            action={granularityBadge}
-          />
-          <div className="grid lg:grid-cols-3 gap-4">
-            {(
-              [
-                [t("charts.enrolledSeries"), trendsBySite.enrolled],
-                [t("charts.casesSeries"), trendsBySite.cases],
-                [t("charts.controlsSeries"), trendsBySite.controls],
-              ] as const
-            ).map(([label, data]) => (
-              <div key={label}>
-                <div className="muted text-xs font-medium mb-1">{label}</div>
-                <MultiLine data={data} xKey="week" dateX height={220} legend={false} series={siteSeries} />
+            action={
+              <div className="flex items-center gap-2">
+                <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
+                  {(["grid", "line"] as const).map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setTrendView(v)}
+                      className={`px-3 py-1.5 ${
+                        trendView === v
+                          ? "bg-[var(--primary)] text-[var(--primary-fg)]"
+                          : "hover:bg-[var(--surface-2)]"
+                      }`}
+                    >
+                      {t(v === "grid" ? "charts.viewGrid" : "charts.viewLine")}
+                    </button>
+                  ))}
+                </div>
+                {granularityBadge}
               </div>
-            ))}
-          </div>
-          <ChartLegend series={siteSeries} />
+            }
+          />
+
+          {trendView === "line" ? (
+            <>
+              <div className="grid lg:grid-cols-3 gap-4">
+                {(
+                  [
+                    [t("charts.enrolledSeries"), trendsBySite.enrolled],
+                    [t("charts.casesSeries"), trendsBySite.cases],
+                    [t("charts.controlsSeries"), trendsBySite.controls],
+                  ] as const
+                ).map(([label, data]) => (
+                  <div key={label}>
+                    <div className="muted text-xs font-medium mb-1">{label}</div>
+                    <MultiLine data={data} xKey="week" dateX height={220} legend={false} series={siteSeries} />
+                  </div>
+                ))}
+              </div>
+              <ChartLegend series={siteSeries} />
+            </>
+          ) : (
+            <div className="space-y-5">
+              {(
+                [
+                  [t("charts.enrolledSeries"), trendsBySite.enrolled, PALETTE.primary, trendMax.enrolled],
+                  [t("charts.casesSeries"), trendsBySite.cases, PALETTE.pos, trendMax.cases],
+                  [t("charts.controlsSeries"), trendsBySite.controls, PALETTE.neg, trendMax.controls],
+                ] as const
+              ).map(([label, data, color, max]) => (
+                <div key={label}>
+                  <div className="muted text-xs font-medium mb-2">{label}</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
+                    {trendsBySite.sites.map((site) => {
+                      const total = data.reduce((sum, row) => sum + ((row[site.name] as number) || 0), 0);
+                      return (
+                        <div key={site.mrc} className="rounded-lg border border-[var(--border)] p-2">
+                          <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                            <span className="font-medium truncate" title={site.name}>
+                              {site.name}
+                            </span>
+                            <span className="muted tabular-nums shrink-0">{total}</span>
+                          </div>
+                          <MiniBar data={data} xKey="week" dataKey={site.name} color={color} domainMax={max} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       )}
 
