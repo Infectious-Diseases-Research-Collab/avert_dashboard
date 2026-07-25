@@ -154,7 +154,10 @@ export function MultiBar<T extends object>({
 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: angledX ? 28 : 4 }}>
+      <BarChart
+        data={data}
+        margin={{ top: refLines.length > 0 ? 20 : 8, right: 12, left: 0, bottom: angledX ? 28 : 4 }}
+      >
         <CartesianGrid stroke={GRID} strokeDasharray="3 3" vertical={false} />
         <XAxis
           dataKey={xKey}
