@@ -75,7 +75,7 @@ export function OverviewSection({
     () => trendsBySite.sites.map((s, i) => ({ key: s.name, color: cycleColor(i) })),
     [trendsBySite],
   );
-  const [trendView, setTrendView] = useState<"grid" | "line">("grid");
+  const [trendView, setTrendView] = useState<"grid" | "line" | "stacked">("grid");
   const siteNames = useMemo(() => trendsBySite.sites.map((s) => s.name), [trendsBySite]);
   const trendMax = useMemo(
     () => ({
@@ -152,12 +152,16 @@ export function OverviewSection({
           <SectionTitle
             title={t("charts.enrollmentTrendsBySite")}
             subtitle={t(
-              trendView === "grid" ? "charts.enrollmentTrendsBySiteSubGrid" : "charts.enrollmentTrendsBySiteSub",
+              trendView === "grid"
+                ? "charts.enrollmentTrendsBySiteSubGrid"
+                : trendView === "stacked"
+                  ? "charts.enrollmentTrendsBySiteSubStacked"
+                  : "charts.enrollmentTrendsBySiteSub",
             )}
             action={
               <div className="flex items-center gap-2">
                 <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
-                  {(["grid", "line"] as const).map((v) => (
+                  {(["grid", "line", "stacked"] as const).map((v) => (
                     <button
                       key={v}
                       onClick={() => setTrendView(v)}
@@ -167,7 +171,9 @@ export function OverviewSection({
                           : "hover:bg-[var(--surface-2)]"
                       }`}
                     >
-                      {t(v === "grid" ? "charts.viewGrid" : "charts.viewLine")}
+                      {t(
+                        v === "grid" ? "charts.viewGrid" : v === "line" ? "charts.viewLine" : "charts.viewStacked",
+                      )}
                     </button>
                   ))}
                 </div>
@@ -176,7 +182,7 @@ export function OverviewSection({
             }
           />
 
-          {trendView === "line" ? (
+          {trendView === "line" && (
             <>
               <div className="grid lg:grid-cols-3 gap-4">
                 {(
@@ -194,7 +200,37 @@ export function OverviewSection({
               </div>
               <ChartLegend series={siteSeries} />
             </>
-          ) : (
+          )}
+
+          {trendView === "stacked" && (
+            <>
+              <div className="grid lg:grid-cols-3 gap-4">
+                {(
+                  [
+                    [t("charts.enrolledSeries"), trendsBySite.enrolled],
+                    [t("charts.casesSeries"), trendsBySite.cases],
+                    [t("charts.controlsSeries"), trendsBySite.controls],
+                  ] as const
+                ).map(([label, data]) => (
+                  <div key={label}>
+                    <div className="muted text-xs font-medium mb-1">{label}</div>
+                    <MultiBar
+                      data={data as unknown as Record<string, unknown>[]}
+                      xKey="week"
+                      dateX
+                      stacked
+                      height={220}
+                      legend={false}
+                      series={siteSeries}
+                    />
+                  </div>
+                ))}
+              </div>
+              <ChartLegend series={siteSeries} />
+            </>
+          )}
+
+          {trendView === "grid" && (
             <div className="space-y-5">
               {(
                 [

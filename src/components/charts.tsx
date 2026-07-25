@@ -187,6 +187,7 @@ export function MultiBar<T extends object>({
   dateX = false,
   refLines = [],
   angledX = false,
+  legend,
 }: {
   data: T[];
   xKey: string;
@@ -196,7 +197,12 @@ export function MultiBar<T extends object>({
   dateX?: boolean;
   refLines?: { x: number; label: string }[];
   angledX?: boolean;
+  /** Defaults to showing recharts' own legend whenever there's more than one
+   * series. Pass false to suppress it (e.g. when a single ChartLegend is
+   * shared across several small panels instead). */
+  legend?: boolean;
 }) {
+  const showLegend = legend ?? series.length > 1;
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart
@@ -215,7 +221,7 @@ export function MultiBar<T extends object>({
         />
         <YAxis tick={AXIS} allowDecimals={false} width={44} />
         <Tooltip {...tooltipStyle()} labelFormatter={dateX ? (v) => fmtWeek(String(v)) : undefined} />
-        {series.length > 1 && <Legend wrapperStyle={{ fontSize: 12 }} />}
+        {showLegend && <Legend wrapperStyle={{ fontSize: 12 }} />}
         {refLines.map((r) => (
           <ReferenceLine
             key={r.label}
