@@ -28,9 +28,15 @@
 --   * a new firing issue is inserted as `open`
 --   * a previously-resolved issue that fires again is re-opened
 --   * an `open` issue that no longer fires becomes `resolved`
+--   * a manually `dismissed` issue is left alone even if it keeps firing
 --   (this also cleans up any issues left over from a previous version
 --    of this function, since their check_code will simply stop firing)
--- Identity of an issue = (check_code, subjid, barcode, field).
+-- Identity of an issue = (check_code, subjid, barcode, field, related_barcode).
+-- related_barcode is null for every check except possible_duplicate_name,
+-- where it's the other participant's barcode -- without it, a participant
+-- matching two or more others at the same facility would produce two rows
+-- with an otherwise-identical identity, and the ON CONFLICT upsert below
+-- would fail with "cannot affect row a second time".
 --
 -- Call it from the loader (service role) after each data upsert:
 --   select public.refresh_quality_issues();
@@ -72,7 +78,7 @@ begin
 
   -- 1. Missing barcode
   select e.country, 'missing_barcode'::text as check_code, 'warning'::text as severity,
-         e.subjid, e.barcode, e.mrc, 'barcode'::text as field,
+         e.subjid, e.barcode, e.mrc, 'barcode'::text as field, null::text as related_barcode,
          'Enrolled participant is missing a study barcode.'::text as description,
          'Le participant inclus n''a pas de code-barres d''étude.'::text as description_fr
   from enrolled e
@@ -81,7 +87,7 @@ begin
   union all
   -- 2. Missing core demographics
   select e.country, 'missing_demographics', 'warning',
-         e.subjid, e.barcode, e.mrc, 'agemonths_calculated/gender/village',
+         e.subjid, e.barcode, e.mrc, 'agemonths_calculated/gender/village', null,
          'Missing age, sex, or village for an enrolled participant.',
          'Âge, sexe ou village manquant pour un participant inclus.'
   from enrolled e
@@ -91,7 +97,7 @@ begin
   union all
   -- 3. Missing malaria diagnostic result
   select e.country, 'missing_diagnostic', 'warning',
-         e.subjid, e.barcode, e.mrc, 'diagnostic',
+         e.subjid, e.barcode, e.mrc, 'diagnostic', null,
          'Missing malaria diagnostic type for an enrolled participant.',
          'Type de diagnostic du paludisme manquant pour un participant inclus.'
   from enrolled e
@@ -100,25 +106,29 @@ begin
   union all
   -- 4. Missing vaccine-card status
   select e.country, 'missing_vx_card', 'warning',
-         e.subjid, e.barcode, e.mrc, 'vx_card',
+         e.subjid, e.barcode, e.mrc, 'vx_card', null,
          'Missing vaccine-card status for an enrolled participant.',
          'Statut de la carte de vaccination manquant pour un participant inclus.'
   from enrolled e
   where nullif(e.raw->>'vx_card','') is null
 
   union all
-  -- 5. Missing "received any doses" (yes/no)
+  -- 5. Missing "received any doses" (yes/no). Skipped when
+  -- vx_doses_received_rtss = 1 -- that means this section of the form was
+  -- itself skipped by design, so a null vx_any here is expected, not missing.
   select e.country, 'missing_vx_any', 'warning',
-         e.subjid, e.barcode, e.mrc, 'vx_any',
+         e.subjid, e.barcode, e.mrc, 'vx_any', null,
          'Missing "received any vaccine doses" (yes/no) for an enrolled participant.',
          'Réponse manquante à "a reçu des doses de vaccin" pour un participant inclus.'
   from enrolled e
   where e.vx_any is null
+    and (nullif(e.raw->>'vx_doses_received_rtss','')::int is null
+         or (e.raw->>'vx_doses_received_rtss')::int <> 1)
 
   union all
   -- 6. vx_any = yes but the number of doses received is missing
   select e.country, 'missing_vx_doses_received', 'warning',
-         e.subjid, e.barcode, e.mrc, 'vx_doses_received',
+         e.subjid, e.barcode, e.mrc, 'vx_doses_received', null,
          'Participant received doses but the number of doses is missing.',
          'Le participant a reçu des doses mais le nombre de doses est manquant.'
   from enrolled e
@@ -128,7 +138,7 @@ begin
   -- 7-10. Missing dose-detail fields (where/date/verification) for each
   -- reported dose, gated by the number of doses actually received.
   select e.country, 'missing_dose_info', 'warning',
-         e.subjid, e.barcode, e.mrc, d.field,
+         e.subjid, e.barcode, e.mrc, d.field, null,
          format('Missing detail (date, location, or verification) for %s.', d.field),
          format('Détail manquant (date, lieu ou vérification) pour %s.', d.field)
   from enrolled e
@@ -142,30 +152,38 @@ begin
     and (d.dose_date is null or nullif(d.date_ver,'') is null or nullif(d.dose_where,'') is null)
 
   union all
-  -- 11. Missing malaria risk-behavior fields
+  -- 11. Missing malaria risk-behavior fields. Skipped when
+  -- vx_doses_received_rtss = 1 -- that means this section of the form was
+  -- itself skipped by design, so nulls here are expected, not missing.
   select e.country, 'missing_malaria_risk', 'warning',
-         e.subjid, e.barcode, e.mrc, 'timetobed/structuresprayed/bednetlastnight',
+         e.subjid, e.barcode, e.mrc, 'timetobed/structuresprayed/bednetlastnight', null,
          'Missing malaria risk-behavior data (bedtime, spraying, or bednet use).',
          'Données sur les comportements à risque de paludisme manquantes (heure du coucher, pulvérisation ou moustiquaire).'
   from enrolled e
-  where nullif(e.raw->>'timetobed','') is null
+  where (nullif(e.raw->>'timetobed','') is null
      or nullif(e.raw->>'structuresprayed','') is null
-     or nullif(e.raw->>'bednetlastnight','') is null
+     or nullif(e.raw->>'bednetlastnight','') is null)
+    and (nullif(e.raw->>'vx_doses_received_rtss','')::int is null
+         or (e.raw->>'vx_doses_received_rtss')::int <> 1)
 
   union all
-  -- 12. Missing previous-diagnosis info
+  -- 12. Missing previous-diagnosis info. Skipped when
+  -- vx_doses_received_rtss = 1 -- that means this section of the form was
+  -- itself skipped by design, so nulls here are expected, not missing.
   select e.country, 'missing_prevdiag', 'warning',
-         e.subjid, e.barcode, e.mrc, 'prevdiag',
+         e.subjid, e.barcode, e.mrc, 'prevdiag', null,
          'Missing previous-diagnosis data (or missing date of a reported previous diagnosis).',
          'Données de diagnostic antérieur manquantes (ou date manquante pour un diagnostic antérieur signalé).'
   from enrolled e
-  where nullif(e.raw->>'prevdiag','') is null
-     or ((e.raw->>'prevdiag')::int = 1 and nullif(e.raw->>'prevdiag_when','') is null)
+  where (nullif(e.raw->>'prevdiag','') is null
+     or ((e.raw->>'prevdiag')::int = 1 and nullif(e.raw->>'prevdiag_when','') is null))
+    and (nullif(e.raw->>'vx_doses_received_rtss','')::int is null
+         or (e.raw->>'vx_doses_received_rtss')::int <> 1)
 
   union all
   -- 13. Barcode doesn't match the expected per-country prefix
   select e.country, 'barcode_country_mismatch', 'error',
-         e.subjid, e.barcode, e.mrc, 'barcode',
+         e.subjid, e.barcode, e.mrc, 'barcode', null,
          format('Barcode %s does not match the expected prefix for %s.', e.barcode, e.country),
          format('Le code-barres %s ne correspond pas au préfixe attendu pour %s.', e.barcode, e.country)
   from enrolled e
@@ -176,7 +194,7 @@ begin
   union all
   -- 14. Barcode re-entry mismatch (barcode vs barcode2)
   select e.country, 'barcode_reentry_mismatch', 'error',
-         e.subjid, e.barcode, e.mrc, 'barcode2',
+         e.subjid, e.barcode, e.mrc, 'barcode2', null,
          'Barcode and re-entered barcode (barcode2) do not match.',
          'Le code-barres et le code-barres ressaisi (barcode2) ne correspondent pas.'
   from enrolled e
@@ -190,7 +208,7 @@ begin
   -- protocol's original enrollment window).
   select e.country, 'age_ineligible_reference_date', 'error',
          e.subjid, e.barcode, e.mrc,
-         case when e.country = 'UG' then 'age_at_apr2025' else 'age_at_sep2023' end,
+         case when e.country = 'UG' then 'age_at_apr2025' else 'age_at_sep2023' end, null,
          format('Age at program reference date (%s months) exceeds the eligibility threshold.',
                 case when e.country = 'UG' then e.raw->>'age_at_apr2025' else e.raw->>'age_at_sep2023' end),
          format('L''âge à la date de référence du programme (%s mois) dépasse le seuil d''éligibilité.',
@@ -202,7 +220,7 @@ begin
   union all
   -- 16. Main consent not marked as provided
   select e.country, 'consent_not_provided', 'error',
-         e.subjid, e.barcode, e.mrc, 'consent',
+         e.subjid, e.barcode, e.mrc, 'consent', null,
          'Main consent is not marked as provided for an enrolled participant.',
          'Le consentement principal n''est pas marqué comme fourni pour un participant inclus.'
   from enrolled e
@@ -211,7 +229,7 @@ begin
   union all
   -- 17. Sample/specimen consent not marked as provided
   select e.country, 'consent2_not_provided', 'error',
-         e.subjid, e.barcode, e.mrc, 'consent2',
+         e.subjid, e.barcode, e.mrc, 'consent2', null,
          'Sample/specimen consent is not marked as provided for an enrolled participant.',
          'Le consentement pour l''échantillon n''est pas marqué comme fourni pour un participant inclus.'
   from enrolled e
@@ -223,8 +241,11 @@ begin
   -- similarity>0.45 (too noisy): now requires an exact DOB match plus a name
   -- trigram distance (1 - pg_trgm similarity) <= 0.075, i.e. similarity >= 0.925
   -- (all but identical). a.barcode < b.barcode makes each pair fire once.
+  -- related_barcode (b.barcode) carries the specific match so a participant
+  -- matching two or more others produces one row per match instead of
+  -- colliding on (check_code, subjid, barcode, field) alone.
   select a.country, 'possible_duplicate_name', 'warning',
-         a.subjid, a.barcode, a.mrc, 'participantsname',
+         a.subjid, a.barcode, a.mrc, 'participantsname', b.barcode,
          format('Participant has the same date of birth and a near-identical name to barcode %s at the same facility (name distance %s).',
                 b.barcode, round((1 - similarity(upper(a.raw->>'participantsname'), upper(b.raw->>'participantsname')))::numeric, 3)),
          format('Le participant a la même date de naissance et un nom quasi identique au code-barres %s dans la même formation sanitaire (distance du nom %s).',
@@ -242,7 +263,7 @@ begin
   -- Only evaluated for a country that actually has a deployed list loaded, so
   -- an empty or not-yet-populated deployed_barcodes table never floods issues.
   select e.country, 'barcode_not_deployed', 'error',
-         e.subjid, e.barcode, e.mrc, 'barcode',
+         e.subjid, e.barcode, e.mrc, 'barcode', null,
          format('Barcode %s is not on the deployed barcode list for %s.', e.barcode, e.country),
          format('Le code-barres %s ne figure pas sur la liste des codes-barres déployés pour %s.', e.barcode, e.country)
   from enrolled e
@@ -257,10 +278,10 @@ begin
 
   -- Upsert firing issues: insert new, re-open previously resolved.
   insert into public.data_quality_issues
-    (country, check_code, severity, subjid, barcode, mrc, field, description, description_fr, status, detected_at, resolved_at)
-  select country, check_code, severity, subjid, barcode, mrc, field, description, description_fr, 'open', now(), null
+    (country, check_code, severity, subjid, barcode, mrc, field, related_barcode, description, description_fr, status, detected_at, resolved_at)
+  select country, check_code, severity, subjid, barcode, mrc, field, related_barcode, description, description_fr, 'open', now(), null
   from _firing
-  on conflict (check_code, coalesce(subjid,''), coalesce(barcode,''), coalesce(field,''))
+  on conflict (check_code, coalesce(subjid,''), coalesce(barcode,''), coalesce(field,''), coalesce(related_barcode,''))
   do update set
     country        = excluded.country,
     severity       = excluded.severity,
@@ -282,9 +303,10 @@ begin
     and not exists (
       select 1 from _firing f
       where f.check_code = d.check_code
-        and coalesce(f.subjid,'')  = coalesce(d.subjid,'')
-        and coalesce(f.barcode,'') = coalesce(d.barcode,'')
-        and coalesce(f.field,'')   = coalesce(d.field,'')
+        and coalesce(f.subjid,'')          = coalesce(d.subjid,'')
+        and coalesce(f.barcode,'')         = coalesce(d.barcode,'')
+        and coalesce(f.field,'')           = coalesce(d.field,'')
+        and coalesce(f.related_barcode,'') = coalesce(d.related_barcode,'')
     );
 
   return n_firing;

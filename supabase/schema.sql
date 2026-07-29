@@ -150,11 +150,17 @@ create table if not exists public.data_quality_issues (
   detected_at    timestamptz not null default now(),
   resolved_at    timestamptz,
   dismissed_at   timestamptz,
-  dismissed_by   text
+  dismissed_by   text,
+  -- The specific other barcode a possible_duplicate_name match is against.
+  -- Null for every other check. Without this, a participant who closely
+  -- matches two or more others at the same facility produces two rows with
+  -- an otherwise-identical identity, and refresh_quality_issues()'s
+  -- ON CONFLICT upsert fails with "cannot affect row a second time".
+  related_barcode text
 );
 -- Stable identity so re-running the check pass reopens/resolves rather than duplicates.
 create unique index if not exists dq_identity_idx on public.data_quality_issues (
-  check_code, coalesce(subjid,''), coalesce(barcode,''), coalesce(field,'')
+  check_code, coalesce(subjid,''), coalesce(barcode,''), coalesce(field,''), coalesce(related_barcode,'')
 );
 create index if not exists dq_status_idx on public.data_quality_issues (status);
 create index if not exists dq_country_idx on public.data_quality_issues (country);
@@ -168,6 +174,15 @@ alter table public.data_quality_issues
   drop constraint if exists data_quality_issues_status_check;
 alter table public.data_quality_issues
   add constraint data_quality_issues_status_check check (status in ('open','resolved','dismissed'));
+
+alter table public.data_quality_issues
+  add column if not exists related_barcode text;
+-- `create index if not exists` above is a no-op if dq_identity_idx already
+-- exists under the old 4-column definition, so widen it explicitly.
+drop index if exists public.dq_identity_idx;
+create unique index dq_identity_idx on public.data_quality_issues (
+  check_code, coalesce(subjid,''), coalesce(barcode,''), coalesce(field,''), coalesce(related_barcode,'')
+);
 
 -- =====================================================================
 -- Auth helpers
