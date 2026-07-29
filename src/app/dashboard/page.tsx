@@ -3,7 +3,7 @@ import { getProfile, visibleCountries } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { villageGeoKey } from "@/lib/metrics";
-import type { Country, Enrollee, Facility, DataQualityIssue } from "@/lib/types";
+import type { Country, Enrollee, Facility, DataQualityIssue, DataQualityAuditEntry } from "@/lib/types";
 
 const ENROLLEE_COLS =
   "uniqueid,country,subjid,barcode,mrc,district,subcounty,parish,village,startdate,enrollment_week,dob," +
@@ -53,13 +53,14 @@ export default async function DashboardPage() {
 
   const supabase = await createClient();
 
-  const [facilitiesRes, enrolleeRes, bloodRes, coverageRes, issuesRes, lastRunRes, villageRows] =
+  const [facilitiesRes, enrolleeRes, bloodRes, coverageRes, issuesRes, auditRes, lastRunRes, villageRows] =
     await Promise.all([
       supabase.from("facilities").select("*"),
       supabase.from("enrollee").select(ENROLLEE_COLS).limit(20000),
       supabase.from("blood_smear").select("barcode,parasitedensity,mic_positive,slidequality"),
       supabase.from("vaccination_status").select("barcode"),
       supabase.from("data_quality_issues").select("*").order("detected_at", { ascending: false }),
+      supabase.from("data_quality_status_audit").select("*").order("acted_at", { ascending: false }),
       supabase
         .from("pipeline_runs")
         .select("finished_at")
@@ -71,6 +72,7 @@ export default async function DashboardPage() {
   const facilities = (facilitiesRes.data ?? []) as Facility[];
   const enrollees = (enrolleeRes.data ?? []) as unknown as Enrollee[];
   const issues = (issuesRes.data ?? []) as DataQualityIssue[];
+  const auditLog = (auditRes.data ?? []) as DataQualityAuditEntry[];
   const lastDataPull = (lastRunRes.data?.[0]?.finished_at as string | undefined) ?? null;
 
   // Village-name lookup keyed by the canonical geo key. Passed to the client as
@@ -104,6 +106,7 @@ export default async function DashboardPage() {
       enrollees={enrollees}
       completedBarcodes={completedBarcodes}
       issues={issues}
+      auditLog={auditLog}
       villageLookup={villageLookup}
       lastDataPull={lastDataPull}
     />

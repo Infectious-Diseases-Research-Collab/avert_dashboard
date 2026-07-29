@@ -12,7 +12,7 @@ import {
   DownloadSection,
 } from "@/components/dashboard/sections";
 import type { TestType } from "@/lib/metrics";
-import type { Country, DataQualityIssue, Enrollee, Facility, Profile } from "@/lib/types";
+import type { Country, DataQualityIssue, DataQualityAuditEntry, Enrollee, Facility, Profile } from "@/lib/types";
 
 type SectionKey =
   | "overview"
@@ -54,6 +54,7 @@ export function DashboardShell({
   enrollees,
   completedBarcodes,
   issues,
+  auditLog,
   villageLookup,
   lastDataPull,
 }: {
@@ -62,6 +63,7 @@ export function DashboardShell({
   enrollees: Enrollee[];
   completedBarcodes: string[];
   issues: DataQualityIssue[];
+  auditLog: DataQualityAuditEntry[];
   villageLookup: [string, string][];
   lastDataPull: string | null;
 }) {
@@ -106,6 +108,10 @@ export function DashboardShell({
     () => issues.filter((i) => (country === "ALL" ? true : i.country === country)),
     [issues, country],
   );
+  const filteredAuditLog = useMemo(
+    () => auditLog.filter((a) => (country === "ALL" ? true : a.country === country)),
+    [auditLog, country],
+  );
 
   const downloadQuery = useMemo(() => {
     const p = new URLSearchParams();
@@ -124,6 +130,7 @@ export function DashboardShell({
     villageNames,
     completedBarcodes: completedSet,
     issues: filteredIssues,
+    auditLog: filteredAuditLog,
     downloadQuery,
     siteSelected: mrc !== "all",
   };

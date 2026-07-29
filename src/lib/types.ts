@@ -78,3 +78,16 @@ export interface DataQualityIssue {
   dismissed_at?: string | null;
   dismissed_by?: string | null;
 }
+
+export interface DataQualityAuditEntry {
+  id: number;
+  issue_id: number;
+  country: Country;
+  check_code: string;
+  subjid: string | null;
+  barcode: string | null;
+  mrc: string | null;
+  action: "dismissed" | "reopened";
+  actor: string;
+  acted_at: string;
+}

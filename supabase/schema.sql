@@ -184,6 +184,34 @@ create unique index dq_identity_idx on public.data_quality_issues (
   check_code, coalesce(subjid,''), coalesce(barcode,''), coalesce(field,''), coalesce(related_barcode,'')
 );
 
+-- Full history of manual dismiss/reopen actions on data_quality_issues (who,
+-- what, when). One row per action — unlike dismissed_at/dismissed_by on the
+-- issue itself, which only reflect the current state, this is append-only so
+-- earlier dismiss/reopen cycles on the same issue aren't lost. Written only
+-- by set_issue_status(); denormalizes country/check_code/subjid/barcode at
+-- the time of the action so the row (and any CSV export of it) is
+-- self-contained even if the parent issue is later deleted or changes.
+create table if not exists public.data_quality_status_audit (
+  id         bigint generated always as identity primary key,
+  issue_id   bigint not null references public.data_quality_issues(id) on delete cascade,
+  country    text not null check (country in ('UG','BF')),
+  check_code text not null,
+  subjid     text,
+  barcode    text,
+  mrc        text,
+  action     text not null check (action in ('dismissed','reopened')),
+  actor      text not null,
+  acted_at   timestamptz not null default now()
+);
+create index if not exists dq_audit_issue_idx on public.data_quality_status_audit (issue_id);
+create index if not exists dq_audit_country_idx on public.data_quality_status_audit (country);
+
+alter table public.data_quality_status_audit enable row level security;
+
+drop policy if exists dq_audit_select on public.data_quality_status_audit;
+create policy dq_audit_select on public.data_quality_status_audit
+  for select to authenticated using (public.auth_can_see(country));
+
 -- =====================================================================
 -- Auth helpers
 -- =====================================================================
@@ -291,23 +319,46 @@ grant execute on function public.get_my_profile() to authenticated;
 -- row the caller is allowed to see (auth_can_see on the row's country) and only
 -- allows the two manual states — it can never set 'resolved' (machine-only).
 -- 'dismissed' survives pipeline refreshes (refresh_quality_issues skips it).
+-- Every successful call also appends a row to data_quality_status_audit, so
+-- there's a full who/what/when history, not just the issue's current state.
 create or replace function public.set_issue_status(p_id bigint, p_status text)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_country text;
+  v_check_code text;
+  v_subjid text;
+  v_barcode text;
+  v_mrc text;
 begin
   if p_status not in ('open','dismissed') then
     raise exception 'Invalid status %, expected open or dismissed', p_status
       using errcode = 'check_violation';
   end if;
+
   update public.data_quality_issues d
   set status       = p_status,
       dismissed_at = case when p_status = 'dismissed' then now() else null end,
       dismissed_by = case when p_status = 'dismissed' then public.auth_email() else null end
   where d.id = p_id
-    and public.auth_can_see(d.country);
+    and public.auth_can_see(d.country)
+  returning d.country, d.check_code, d.subjid, d.barcode, d.mrc
+  into v_country, v_check_code, v_subjid, v_barcode, v_mrc;
+
+  -- Only log when the update actually matched a (visible) row — an unknown id
+  -- or a row outside the caller's country access is a silent no-op, same as
+  -- before, and shouldn't produce an audit entry.
+  if found then
+    insert into public.data_quality_status_audit
+      (issue_id, country, check_code, subjid, barcode, mrc, action, actor)
+    values
+      (p_id, v_country, v_check_code, v_subjid, v_barcode, v_mrc,
+       case when p_status = 'dismissed' then 'dismissed' else 'reopened' end,
+       public.auth_email());
+  end if;
 end;
 $$;
 
@@ -463,5 +514,5 @@ grant select on
   public.allowed_users, public.facilities, public.enrollee,
   public.vaccination_status, public.audittrail, public.blood_smear,
   public.data_quality_issues, public.villages,
-  public.pipeline_runs, public.deployed_barcodes
+  public.pipeline_runs, public.deployed_barcodes, public.data_quality_status_audit
 to authenticated;

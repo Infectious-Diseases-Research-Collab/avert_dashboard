@@ -135,7 +135,16 @@
     "actions": "Actions",
     "dismiss": "Écarter",
     "reopen": "Rouvrir",
-    "downloadErrors": "Télécharger les erreurs (CSV)"
+    "downloadErrors": "Télécharger les erreurs (CSV)",
+    "auditTitle": "Historique écarté/rouvert",
+    "auditIntro": "Historique complet de chaque action d'écartement et de réouverture, avec l'auteur et la date.",
+    "downloadAudit": "Télécharger l'historique (CSV)",
+    "action": "Action",
+    "actor": "Par",
+    "when": "Quand",
+    "dismissedAction": "Écarté",
+    "reopenedAction": "Rouvert",
+    "noAuditEntries": "Aucune action d'écartement/réouverture pour l'instant."
   },
   "download": {
     "title": "Télécharger les données",

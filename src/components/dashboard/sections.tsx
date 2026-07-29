@@ -10,6 +10,7 @@ import {
   ConcordanceTable,
   VerificationByFacilityTable,
   DataQualityTable,
+  DataQualityAuditTable,
 } from "@/components/dashboard/tables";
 import {
   computeKpis,
@@ -30,7 +31,7 @@ import {
   verificationSummary,
   type TestType,
 } from "@/lib/metrics";
-import type { Enrollee, DataQualityIssue } from "@/lib/types";
+import type { Enrollee, DataQualityIssue, DataQualityAuditEntry } from "@/lib/types";
 
 interface SectionProps {
   enrollees: Enrollee[];
@@ -39,6 +40,7 @@ interface SectionProps {
   villageNames: Map<string, string>;
   completedBarcodes: Set<string>;
   issues: DataQualityIssue[];
+  auditLog: DataQualityAuditEntry[];
   downloadQuery: string;
   /** True when the facility filter has a specific site selected (not "all"). */
   siteSelected: boolean;
@@ -521,24 +523,42 @@ export function VerificationSection({
 
 // ---------------------------------------------------------------------------
 
-export function DataQualitySection({ issues, facilityNames, downloadQuery }: SectionProps) {
+export function DataQualitySection({ issues, auditLog, facilityNames, downloadQuery }: SectionProps) {
   const t = useTranslations();
   return (
-    <Card>
-      <SectionTitle
-        title={t("dataQuality.title")}
-        subtitle={t("dataQuality.intro")}
-        action={
-          <a
-            href={`/api/download/data_quality?${downloadQuery}`}
-            className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
-          >
-            {t("dataQuality.downloadErrors")}
-          </a>
-        }
-      />
-      <DataQualityTable issues={issues} facilityNames={facilityNames} />
-    </Card>
+    <div className="space-y-5">
+      <Card>
+        <SectionTitle
+          title={t("dataQuality.title")}
+          subtitle={t("dataQuality.intro")}
+          action={
+            <a
+              href={`/api/download/data_quality?${downloadQuery}`}
+              className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
+            >
+              {t("dataQuality.downloadErrors")}
+            </a>
+          }
+        />
+        <DataQualityTable issues={issues} facilityNames={facilityNames} />
+      </Card>
+
+      <Card>
+        <SectionTitle
+          title={t("dataQuality.auditTitle")}
+          subtitle={t("dataQuality.auditIntro")}
+          action={
+            <a
+              href={`/api/download/data_quality_audit?${downloadQuery}`}
+              className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
+            >
+              {t("dataQuality.downloadAudit")}
+            </a>
+          }
+        />
+        <DataQualityAuditTable entries={auditLog} facilityNames={facilityNames} />
+      </Card>
+    </div>
   );
 }
 

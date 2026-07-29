@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge, fmtNum, fmtPct } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
-import type { DataQualityIssue } from "@/lib/types";
+import type { DataQualityIssue, DataQualityAuditEntry } from "@/lib/types";
 import type { DemogColumn, MatchScenario, Concordance } from "@/lib/metrics";
 
 function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -328,6 +328,101 @@ export function DataQualityTable({
                   </tr>
                 );
               })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type AuditSortKey = "action" | "actor" | "acted_at";
+
+/** Full history of dismiss/reopen actions on data-quality issues (who, what,
+ * when) — append-only, unlike the issue's own dismissed_at/dismissed_by which
+ * only reflect its current state. */
+export function DataQualityAuditTable({
+  entries,
+  facilityNames,
+}: {
+  entries: DataQualityAuditEntry[];
+  facilityNames: Map<string, string>;
+}) {
+  const t = useTranslations();
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<{ key: AuditSortKey; dir: 1 | -1 }>({
+    key: "acted_at",
+    dir: -1,
+  });
+
+  const filtered = useMemo(() => {
+    let rows = entries;
+    if (q.trim()) {
+      const needle = q.toLowerCase();
+      rows = rows.filter((e) =>
+        [e.check_code, e.subjid, e.barcode, e.actor]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(needle)),
+      );
+    }
+    return [...rows].sort((a, b) => String(a[sort.key]).localeCompare(String(b[sort.key])) * sort.dir);
+  }, [entries, q, sort]);
+
+  function toggleSort(key: AuditSortKey) {
+    setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 }));
+  }
+
+  const SortTh = ({ k, children }: { k: AuditSortKey; children: React.ReactNode }) => (
+    <th
+      onClick={() => toggleSort(k)}
+      className="text-left font-medium muted px-3 py-2 border-b border-[var(--border)] cursor-pointer select-none hover:text-[var(--text)]"
+    >
+      {children}
+      {sort.key === k ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
+    </th>
+  );
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t("dataQuality.search")}
+          className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm outline-none focus:border-[var(--primary)] flex-1 min-w-[180px]"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="muted text-sm py-8 text-center">{t("dataQuality.noAuditEntries")}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr>
+                <SortTh k="action">{t("dataQuality.action")}</SortTh>
+                <Th>{t("dataQuality.check")}</Th>
+                <Th>{t("dataQuality.subject")}</Th>
+                <Th>{t("filters.facility")}</Th>
+                <SortTh k="actor">{t("dataQuality.actor")}</SortTh>
+                <SortTh k="acted_at">{t("dataQuality.when")}</SortTh>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((e) => (
+                <tr key={e.id}>
+                  <Td>
+                    <Badge tone={e.action === "dismissed" ? "dismissed" : "open"}>
+                      {t(`dataQuality.${e.action}Action`)}
+                    </Badge>
+                  </Td>
+                  <Td className="font-mono text-xs">{e.check_code}</Td>
+                  <Td>{e.subjid ?? e.barcode ?? "—"}</Td>
+                  <Td>{e.mrc ? (facilityNames.get(e.mrc) ?? e.mrc) : "—"}</Td>
+                  <Td className="text-xs">{e.actor}</Td>
+                  <Td className="text-xs">{e.acted_at.slice(0, 16).replace("T", " ")}</Td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

@@ -135,7 +135,16 @@
     "actions": "Actions",
     "dismiss": "Dismiss",
     "reopen": "Reopen",
-    "downloadErrors": "Download errors (CSV)"
+    "downloadErrors": "Download errors (CSV)",
+    "auditTitle": "Dismiss/reopen history",
+    "auditIntro": "Full audit trail of every dismiss and reopen action, with who made the change and when.",
+    "downloadAudit": "Download history (CSV)",
+    "action": "Action",
+    "actor": "By",
+    "when": "When",
+    "dismissedAction": "Dismissed",
+    "reopenedAction": "Reopened",
+    "noAuditEntries": "No dismiss/reopen actions yet."
   },
   "download": {
     "title": "Download data",
