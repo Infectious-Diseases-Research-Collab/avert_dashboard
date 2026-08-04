@@ -24,12 +24,14 @@ import {
   matchingStats,
   doseDistribution,
   coverageByWeek,
+  coverageByAge,
   ageAtVaccination,
   timeSinceLastDose,
   timeBetweenDoses,
   concordance,
   verificationSummary,
   type TestType,
+  type AgeDistributionBy,
 } from "@/lib/metrics";
 import type { Enrollee, DataQualityIssue, DataQualityAuditEntry } from "@/lib/types";
 
@@ -91,7 +93,11 @@ export function OverviewSection({
     () => enrollmentByVillage(enrollees, testType, villageNames),
     [enrollees, testType, villageNames],
   );
-  const ages = useMemo(() => ageDistribution(enrollees), [enrollees]);
+  const [ageBy, setAgeBy] = useState<AgeDistributionBy>("sex");
+  const ages = useMemo(
+    () => ageDistribution(enrollees, ageBy, testType),
+    [enrollees, ageBy, testType],
+  );
   const demog = useMemo(() => demographics(enrollees, testType), [enrollees, testType]);
   const matching = useMemo(() => matchingStats(enrollees, testType), [enrollees, testType]);
 
@@ -288,15 +294,42 @@ export function OverviewSection({
 
       <div className="grid lg:grid-cols-2 gap-5">
         <Card>
-          <SectionTitle title={t("charts.ageDistribution")} subtitle={t("charts.ageDistributionSub")} />
+          <SectionTitle
+            title={t("charts.ageDistribution")}
+            subtitle={t(ageBy === "sex" ? "charts.ageDistributionSub" : "charts.ageDistributionSubCaseControl")}
+            action={
+              <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
+                {(["sex", "caseControl"] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setAgeBy(v)}
+                    className={`px-3 py-1.5 whitespace-nowrap ${
+                      ageBy === v
+                        ? "bg-[var(--primary)] text-[var(--primary-fg)]"
+                        : "hover:bg-[var(--surface-2)]"
+                    }`}
+                  >
+                    {t(v === "sex" ? "charts.bySex" : "charts.byCaseControl")}
+                  </button>
+                ))}
+              </div>
+            }
+          />
           <MultiBar
             data={ages as unknown as Record<string, unknown>[]}
             xKey="label"
             stacked
-            series={[
-              { key: "Male", name: t("charts.male"), color: PALETTE.neg },
-              { key: "Female", name: t("charts.female"), color: PALETTE.grey },
-            ]}
+            series={
+              ageBy === "sex"
+                ? [
+                    { key: "Male", name: t("charts.male"), color: PALETTE.neg },
+                    { key: "Female", name: t("charts.female"), color: PALETTE.grey },
+                  ]
+                : [
+                    { key: "Cases", name: t("charts.casesSeries"), color: PALETTE.pos },
+                    { key: "Controls", name: t("charts.controlsSeries"), color: PALETTE.neg },
+                  ]
+            }
           />
         </Card>
         <Card>
@@ -326,6 +359,7 @@ export function VaccineCoverageSection({ enrollees }: SectionProps) {
   );
   const doses = useMemo(() => doseDistribution(enrollees), [enrollees]);
   const coverage = useMemo(() => coverageByWeek(enrollees, granularity), [enrollees, granularity]);
+  const covByAge = useMemo(() => coverageByAge(enrollees), [enrollees]);
   const ageVax = useMemo(() => ageAtVaccination(enrollees), [enrollees]);
   const sinceLast = useMemo(() => timeSinceLastDose(enrollees), [enrollees]);
   const between = useMemo(() => timeBetweenDoses(enrollees), [enrollees]);
@@ -367,6 +401,16 @@ export function VaccineCoverageSection({ enrollees }: SectionProps) {
           />
         </Card>
       </div>
+
+      <Card>
+        <SectionTitle title={t("charts.coverageByAge")} subtitle={t("charts.coverageByAgeSub")} />
+        <MultiBar
+          data={covByAge as unknown as Record<string, unknown>[]}
+          xKey="label"
+          percent
+          series={[{ key: "pct", name: t("charts.atLeastOneDose"), color: PALETTE.primary }]}
+        />
+      </Card>
 
       <Card>
         <SectionTitle title={t("charts.ageAtVaccination")} subtitle={t("charts.ageAtVaccinationSub")} />

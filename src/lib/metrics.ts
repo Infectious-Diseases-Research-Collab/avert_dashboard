@@ -371,10 +371,34 @@ export function enrollmentByVillage(
 // Age distribution (stacked by sex, binwidth 2)
 // ---------------------------------------------------------------------------
 
-export function ageDistribution(screened: Enrollee[]): HistBin[] {
-  const data = screened
+/** How to split the age histogram: by sex, or by case/control status. */
+export type AgeDistributionBy = "sex" | "caseControl";
+
+export function ageDistribution(
+  screened: Enrollee[],
+  by: AgeDistributionBy = "sex",
+  testType: TestType = "rdt",
+): HistBin[] {
+  const enrolled = screened
     .filter(isEnrolled)
-    .filter((e) => e.agemonths_calculated != null)
+    .filter((e) => e.agemonths_calculated != null);
+
+  // Records that can't be classified (no sex recorded, or no test result under
+  // the active case definition) are dropped rather than bucketed as "Unknown".
+  if (by === "caseControl") {
+    const data = enrolled
+      .map((e) => {
+        const r = testResult(e, testType);
+        return {
+          value: e.agemonths_calculated as number,
+          series: r === 1 ? "Cases" : r === 0 ? "Controls" : "Unknown",
+        };
+      })
+      .filter((d) => d.series !== "Unknown");
+    return histogram(data, 2, ["Cases", "Controls"]);
+  }
+
+  const data = enrolled
     .map((e) => ({
       value: e.agemonths_calculated as number,
       series: e.sex === 1 ? "Male" : e.sex === 0 ? "Female" : "Unknown",
@@ -434,7 +458,11 @@ export interface MatchScenario {
   matchedPairs: number;
   unmatchedCases: number;
   unusedControls: number;
+  /** Share of ALL enrolled participants left unpaired by this scenario. */
   fractionDiscarded: number;
+  /** Share of CASES specifically left unmatched — the loss that actually costs
+   * analytic power, since every discarded case is an unrecoverable event. */
+  fractionCasesDiscarded: number;
 }
 
 function greedyMatch(
@@ -488,6 +516,7 @@ export function matchingStats(screened: Enrollee[], testType: TestType): MatchSc
       unmatchedCases: cases.length - matched,
       unusedControls: controls.length - matched,
       fractionDiscarded: total ? (total - 2 * matched) / total : 0,
+      fractionCasesDiscarded: cases.length ? (cases.length - matched) / cases.length : 0,
     };
   });
 }
@@ -534,6 +563,50 @@ export function coverageByWeek(screened: Enrollee[], granularity: TrendGranulari
       week: p.week,
       "≥1 Dose": p.n ? (p.d1 / p.n) * 100 : 0,
       "≥3 Doses": p.n ? (p.d3 / p.n) * 100 : 0,
+    }));
+}
+
+export interface CoverageByAgeBin {
+  x: number;        // bin left edge, in months
+  label: string;    // e.g. "6–7"
+  n: number;        // enrolled participants in this age bin
+  covered: number;  // of those, how many received >= 1 dose
+  pct: number;      // covered / n, as a percentage
+}
+
+/**
+ * Vaccine coverage (share with at least one dose) by age at enrollment,
+ * bucketed into fixed-width age bins. Bins with no participants are omitted
+ * rather than plotted as 0% — an empty bin has no coverage to report, and
+ * drawing it as zero would read as "nobody here was vaccinated".
+ */
+export function coverageByAge(screened: Enrollee[], binWidth = 2): CoverageByAgeBin[] {
+  const enrolled = screened
+    .filter(isEnrolled)
+    .filter((e) => e.agemonths_calculated != null);
+  if (enrolled.length === 0) return [];
+
+  const bins = new Map<number, { n: number; covered: number }>();
+  for (const e of enrolled) {
+    const x = Math.floor((e.agemonths_calculated as number) / binWidth) * binWidth;
+    let b = bins.get(x);
+    if (!b) {
+      b = { n: 0, covered: 0 };
+      bins.set(x, b);
+    }
+    b.n += 1;
+    if ((e.vx_doses_received ?? 0) >= 1) b.covered += 1;
+  }
+
+  return [...bins.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([x, b]) => ({
+      x,
+      label: binWidth === 1 ? `${x}` : `${x}–${x + binWidth - 1}`,
+      n: b.n,
+      covered: b.covered,
+      // Rounded so the chart tooltip reads "71.4", not "71.42857142857143".
+      pct: Math.round((b.covered / b.n) * 1000) / 10,
     }));
 }
 

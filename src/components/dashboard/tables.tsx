@@ -89,6 +89,7 @@ export function MatchingTable({ data }: { data: MatchScenario[] }) {
             <Th className="text-right">{t("tables.matchedPairs")}</Th>
             <Th className="text-right">{t("tables.unmatchedCases")}</Th>
             <Th className="text-right">{t("tables.unusedControls")}</Th>
+            <Th className="text-right">{t("tables.fractionCasesDiscarded")}</Th>
             <Th className="text-right">{t("tables.fractionDiscarded")}</Th>
           </tr>
         </thead>
@@ -99,6 +100,7 @@ export function MatchingTable({ data }: { data: MatchScenario[] }) {
               <Td className="text-right">{s.matchedPairs}</Td>
               <Td className="text-right">{s.unmatchedCases}</Td>
               <Td className="text-right">{s.unusedControls}</Td>
+              <Td className="text-right">{fmtPct(s.fractionCasesDiscarded * 100)}</Td>
               <Td className="text-right">{fmtPct(s.fractionDiscarded * 100)}</Td>
             </tr>
           ))}

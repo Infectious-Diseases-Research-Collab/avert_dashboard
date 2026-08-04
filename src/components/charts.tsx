@@ -187,6 +187,7 @@ export function MultiBar<T extends object>({
   dateX = false,
   refLines = [],
   angledX = false,
+  percent = false,
   legend,
 }: {
   data: T[];
@@ -197,6 +198,8 @@ export function MultiBar<T extends object>({
   dateX?: boolean;
   refLines?: { x: number; label: string }[];
   angledX?: boolean;
+  /** Render the y-axis as a fixed 0-100% scale. */
+  percent?: boolean;
   /** Defaults to showing recharts' own legend whenever there's more than one
    * series. Pass false to suppress it (e.g. when a single ChartLegend is
    * shared across several small panels instead). */
@@ -219,7 +222,13 @@ export function MultiBar<T extends object>({
           height={angledX ? 60 : 30}
           tickFormatter={dateX ? (v) => fmtWeek(String(v)) : undefined}
         />
-        <YAxis tick={AXIS} allowDecimals={false} width={44} />
+        <YAxis
+          tick={AXIS}
+          domain={percent ? [0, 100] : undefined}
+          tickFormatter={percent ? (v) => `${v}%` : undefined}
+          allowDecimals={false}
+          width={44}
+        />
         <Tooltip {...tooltipStyle()} labelFormatter={dateX ? (v) => fmtWeek(String(v)) : undefined} />
         {showLegend && <Legend wrapperStyle={{ fontSize: 12 }} />}
         {refLines.map((r) => (
