@@ -80,6 +80,7 @@ export function OverviewSection({
     [trendsBySite],
   );
   const [trendView, setTrendView] = useState<"grid" | "line" | "stacked">("grid");
+  const [gridMetric, setGridMetric] = useState<"all" | "cases">("all");
   const siteNames = useMemo(() => trendsBySite.sites.map((s) => s.name), [trendsBySite]);
   const trendMax = useMemo(
     () => ({
@@ -88,6 +89,47 @@ export function OverviewSection({
       controls: seriesMax(trendsBySite.controls, siteNames),
     }),
     [trendsBySite, siteNames],
+  );
+
+  // Grid view: one stacked chart per site. Enrolled is exactly cases +
+  // controls, so plotting all three separately drew the same information
+  // twice; stack them instead and let the bar height carry the total.
+  // Re-shape the three site-keyed row-sets into one {Cases, Controls} series
+  // per site, joined on the bucket key (all three share the same buckets).
+  const perSiteStacks = useMemo(() => {
+    const controlsByWeek = new Map(trendsBySite.controls.map((r) => [String(r.week), r]));
+    return trendsBySite.sites.map((site) => {
+      const data = trendsBySite.cases.map((r) => ({
+        week: String(r.week),
+        Cases: (r[site.name] as number) || 0,
+        Controls: (controlsByWeek.get(String(r.week))?.[site.name] as number) || 0,
+      }));
+      return {
+        site,
+        data,
+        caseTotal: data.reduce((s, d) => s + d.Cases, 0),
+        total: data.reduce((s, d) => s + d.Cases + d.Controls, 0),
+      };
+    });
+  }, [trendsBySite]);
+
+  // Shared domain across every cell so bar heights stay comparable site to site.
+  const stackMax = useMemo(() => {
+    let max = 0;
+    for (const s of perSiteStacks) {
+      for (const d of s.data) max = Math.max(max, d.Cases + d.Controls);
+    }
+    return max || 1;
+  }, [perSiteStacks]);
+
+  // Cases sit on the axis (first in the stack): baseline-anchored segments are
+  // much easier to compare than floating ones, and cases are the scarce signal.
+  const stackSeries = useMemo(
+    () => [
+      { key: "Cases", name: t("charts.casesSeries"), color: PALETTE.pos },
+      { key: "Controls", name: t("charts.controlsSeries"), color: PALETTE.neg },
+    ],
+    [t],
   );
   const villages = useMemo(
     () => enrollmentByVillage(enrollees, testType, villageNames),
@@ -161,13 +203,32 @@ export function OverviewSection({
             title={t("charts.enrollmentTrendsBySite")}
             subtitle={t(
               trendView === "grid"
-                ? "charts.enrollmentTrendsBySiteSubGrid"
+                ? gridMetric === "cases"
+                  ? "charts.enrollmentTrendsBySiteSubGridCases"
+                  : "charts.enrollmentTrendsBySiteSubGrid"
                 : trendView === "stacked"
                   ? "charts.enrollmentTrendsBySiteSubStacked"
                   : "charts.enrollmentTrendsBySiteSub",
             )}
             action={
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {trendView === "grid" && (
+                  <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
+                    {(["all", "cases"] as const).map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setGridMetric(m)}
+                        className={`px-3 py-1.5 whitespace-nowrap ${
+                          gridMetric === m
+                            ? "bg-[var(--primary)] text-[var(--primary-fg)]"
+                            : "hover:bg-[var(--surface-2)]"
+                        }`}
+                      >
+                        {t(m === "all" ? "charts.gridAll" : "charts.gridCasesOnly")}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
                   {(["grid", "line", "stacked"] as const).map((v) => (
                     <button
@@ -239,35 +300,38 @@ export function OverviewSection({
           )}
 
           {trendView === "grid" && (
-            <div className="space-y-5">
-              {(
-                [
-                  [t("charts.enrolledSeries"), trendsBySite.enrolled, PALETTE.primary, trendMax.enrolled],
-                  [t("charts.casesSeries"), trendsBySite.cases, PALETTE.pos, trendMax.cases],
-                  [t("charts.controlsSeries"), trendsBySite.controls, PALETTE.neg, trendMax.controls],
-                ] as const
-              ).map(([label, data, color, max]) => (
-                <div key={label}>
-                  <div className="muted text-xs font-medium mb-2">{label}</div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
-                    {trendsBySite.sites.map((site) => {
-                      const total = data.reduce((sum, row) => sum + ((row[site.name] as number) || 0), 0);
-                      return (
-                        <div key={site.mrc} className="rounded-lg border border-[var(--border)] p-2">
-                          <div className="flex items-center justify-between gap-2 text-xs mb-1">
-                            <span className="font-medium truncate" title={site.name}>
-                              {site.name}
-                            </span>
-                            <span className="muted tabular-nums shrink-0">{total}</span>
-                          </div>
-                          <MiniBar data={data} xKey="week" dataKey={site.name} color={color} domainMax={max} />
-                        </div>
-                      );
-                    })}
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
+                {perSiteStacks.map(({ site, data, caseTotal, total }) => (
+                  <div key={site.mrc} className="rounded-lg border border-[var(--border)] p-2">
+                    <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                      <span className="font-medium truncate" title={site.name}>
+                        {site.name}
+                      </span>
+                      {gridMetric === "all" ? (
+                        <span
+                          className="tabular-nums shrink-0"
+                          title={t("charts.siteTotals", { cases: caseTotal, total })}
+                        >
+                          <span style={{ color: PALETTE.pos }}>{caseTotal}</span>
+                          <span className="muted">/{total}</span>
+                        </span>
+                      ) : (
+                        <span className="muted tabular-nums shrink-0">{caseTotal}</span>
+                      )}
+                    </div>
+                    <MiniBar
+                      data={data}
+                      xKey="week"
+                      stacked={gridMetric === "all"}
+                      series={gridMetric === "all" ? stackSeries : [stackSeries[0]]}
+                      domainMax={gridMetric === "all" ? stackMax : trendMax.cases}
+                    />
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+              {gridMetric === "all" && <ChartLegend series={stackSeries} />}
+            </>
           )}
         </Card>
       )}

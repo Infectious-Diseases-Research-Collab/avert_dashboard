@@ -101,16 +101,19 @@ export function ChartLegend({ series }: { series: Series[] }) {
 export function MiniBar<T extends object>({
   data,
   xKey,
-  dataKey,
-  color,
+  series,
   domainMax,
+  stacked = false,
   height = 72,
 }: {
   data: T[];
   xKey: string;
-  dataKey: string;
-  color: string;
+  series: Series[];
   domainMax: number;
+  /** Stack the series into one bar per bucket. The FIRST series sits on the
+   * axis — put the scarce/important one there, since segments anchored to the
+   * baseline are far easier to compare than floating ones. */
+  stacked?: boolean;
   height?: number;
 }) {
   return (
@@ -119,7 +122,17 @@ export function MiniBar<T extends object>({
         <XAxis dataKey={xKey} hide />
         <YAxis hide domain={[0, domainMax]} />
         <Tooltip {...tooltipStyle()} labelFormatter={(v) => fmtWeek(String(v))} />
-        <Bar dataKey={dataKey} fill={color} radius={[2, 2, 0, 0]} />
+        {series.map((s, i) => (
+          <Bar
+            key={s.key}
+            dataKey={s.key}
+            name={s.name ?? s.key}
+            fill={s.color}
+            stackId={stacked ? "a" : undefined}
+            // Only the topmost segment gets rounded corners.
+            radius={stacked && i < series.length - 1 ? 0 : [2, 2, 0, 0]}
+          />
+        ))}
       </BarChart>
     </ResponsiveContainer>
   );
