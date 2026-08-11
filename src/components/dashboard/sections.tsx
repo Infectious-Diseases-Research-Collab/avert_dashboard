@@ -3,7 +3,17 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Card, SectionTitle, StatCard, EmptyState, fmtPct } from "@/components/ui";
-import { MultiLine, MultiBar, MiniBar, ChartLegend, seriesMax, PALETTE, cycleColor } from "@/components/charts";
+import {
+  MultiLine,
+  MultiBar,
+  MiniBar,
+  MiniLine,
+  ChartLegend,
+  seriesMax,
+  PALETTE,
+  cycleColor,
+} from "@/components/charts";
+import { SiteMap } from "@/components/SiteMap";
 import {
   DemographicsTable,
   MatchingTable,
@@ -31,14 +41,26 @@ import {
   concordance,
   verificationSummary,
   verificationCandidates,
+  cumulativeTrends,
+  positivityTrends,
+  positivityBySite,
+  toCumulative,
+  withTargetColumns,
+  studyStartKey,
+  studyEndKey,
+  siteProgress,
+  DAILY_TARGETS,
+  SITE_DAILY_TARGETS,
   type TestType,
   type AgeDistributionBy,
 } from "@/lib/metrics";
-import type { Enrollee, DataQualityIssue, DataQualityAuditEntry } from "@/lib/types";
+import type { Enrollee, Facility, DataQualityIssue, DataQualityAuditEntry } from "@/lib/types";
 
 interface SectionProps {
   enrollees: Enrollee[];
   testType: TestType;
+  /** Facilities visible under the current country filter (carries coordinates). */
+  facilities: Facility[];
   facilityNames: Map<string, string>;
   villageNames: Map<string, string>;
   completedBarcodes: Set<string>;
@@ -56,6 +78,7 @@ interface SectionProps {
 export function OverviewSection({
   enrollees,
   testType,
+  facilities,
   facilityNames,
   villageNames,
   siteSelected,
@@ -68,9 +91,44 @@ export function OverviewSection({
       {t(granularity === "day" ? "charts.dailyView" : "charts.weeklyView")}
     </span>
   );
+
+  // Study day 1 = the earliest enrollment day in the visible data; target lines
+  // are anchored to it.
+  const startKey = useMemo(() => studyStartKey(enrollees), [enrollees]);
+  const endKey = useMemo(() => studyEndKey(enrollees), [enrollees]);
+
+  const [trendMode, setTrendMode] = useState<"daily" | "cumulative" | "positivity">("daily");
+
   const weekly = useMemo(() => weeklyTrends(enrollees, granularity), [enrollees, granularity]);
   const hasMicro = weekly.some((w) => w["Micro+"] + w["Micro-"] > 0);
-  const facilities = useMemo(
+  const dailyWithTargets = useMemo(
+    () => withTargetColumns(weekly, DAILY_TARGETS, granularity, startKey, endKey, false),
+    [weekly, granularity, startKey, endKey],
+  );
+  const cumulative = useMemo(
+    () =>
+      withTargetColumns(
+        cumulativeTrends(enrollees, testType, granularity),
+        DAILY_TARGETS,
+        granularity,
+        startKey,
+        endKey,
+        true,
+      ),
+    [enrollees, testType, granularity, startKey, endKey],
+  );
+  const positivity = useMemo(
+    () => positivityTrends(enrollees, testType, granularity),
+    [enrollees, testType, granularity],
+  );
+
+  // Map: cumulative enrolled per site vs the per-site daily target to date.
+  const progress = useMemo(
+    () => siteProgress(enrollees, facilities, SITE_DAILY_TARGETS.low),
+    [enrollees, facilities],
+  );
+
+  const facilityCounts = useMemo(
     () => enrollmentByFacility(enrollees, testType, facilityNames),
     [enrollees, testType, facilityNames],
   );
@@ -83,7 +141,11 @@ export function OverviewSection({
     [trendsBySite],
   );
   const [trendView, setTrendView] = useState<"grid" | "line" | "stacked">("grid");
-  const [gridMetric, setGridMetric] = useState<"all" | "cases">("all");
+  const [siteMetric, setSiteMetric] = useState<"all" | "cases" | "cumulative" | "positivity">("all");
+  // Stacking is only meaningful for the count metrics: cumulative totals would
+  // double-count and percentages don't sum. Fall back to the line view.
+  const stackable = siteMetric === "all" || siteMetric === "cases";
+  const effectiveView = !stackable && trendView === "stacked" ? "line" : trendView;
   const siteNames = useMemo(() => trendsBySite.sites.map((s) => s.name), [trendsBySite]);
   const trendMax = useMemo(
     () => ({
@@ -134,6 +196,51 @@ export function OverviewSection({
     ],
     [t],
   );
+
+  // Per-site cumulative enrolled, with the per-site target lines attached so
+  // the line view can draw them without a second pass.
+  const cumulativeBySite = useMemo(
+    () =>
+      withTargetColumns(
+        toCumulative(trendsBySite.enrolled, siteNames),
+        SITE_DAILY_TARGETS,
+        granularity,
+        startKey,
+        endKey,
+        true,
+      ),
+    [trendsBySite, siteNames, granularity, startKey, endKey],
+  );
+  const cumulativeMax = useMemo(
+    () => seriesMax(cumulativeBySite, [...siteNames, "TargetHigh"]),
+    [cumulativeBySite, siteNames],
+  );
+  const positivityBySiteRows = useMemo(() => positivityBySite(trendsBySite), [trendsBySite]);
+
+  /** Rows + series for whichever metric the by-site card is showing. */
+  const siteMetricView = useMemo(() => {
+    if (siteMetric === "cumulative") {
+      return {
+        rows: cumulativeBySite as unknown as Record<string, unknown>[],
+        series: [
+          ...siteSeries,
+          { key: "TargetLow", name: t("charts.targetSiteLow"), color: PALETTE.green, dashed: true },
+          { key: "TargetHigh", name: t("charts.targetSiteHigh"), color: PALETTE.orange, dashed: true },
+        ],
+        domainMax: cumulativeMax,
+        percent: false,
+      };
+    }
+    if (siteMetric === "positivity") {
+      return {
+        rows: positivityBySiteRows as unknown as Record<string, unknown>[],
+        series: siteSeries,
+        domainMax: 100,
+        percent: true,
+      };
+    }
+    return null;
+  }, [siteMetric, cumulativeBySite, cumulativeMax, positivityBySiteRows, siteSeries, t]);
   const villages = useMemo(
     () => enrollmentByVillage(enrollees, testType, villageNames),
     [enrollees, testType, villageNames],
@@ -155,29 +262,108 @@ export function OverviewSection({
         <StatCard label={t("kpi.controls")} value={kpis.controls} accent={PALETTE.neg} />
       </div>
 
-      <Card>
-        <SectionTitle
-          title={t(granularity === "day" ? "charts.dailyTrends" : "charts.weeklyTrends")}
-          action={granularityBadge}
-        />
-        <MultiLine
-          data={weekly}
-          xKey="week"
-          dateX
-          series={[
-            { key: "Screened", color: PALETTE.grey },
-            { key: "Enrolled", color: PALETTE.primary },
-            { key: "RDT+", color: PALETTE.pos },
-            { key: "RDT-", color: PALETTE.neg },
-            ...(hasMicro
-              ? [
-                  { key: "Micro+", color: PALETTE.purple },
-                  { key: "Micro-", color: PALETTE.orange },
-                ]
-              : []),
-          ]}
-        />
-      </Card>
+      <div className="grid lg:grid-cols-3 gap-5">
+        <Card className="lg:col-span-2">
+          <SectionTitle
+            title={t(
+              trendMode === "cumulative"
+                ? "charts.cumulativeTrends"
+                : trendMode === "positivity"
+                  ? "charts.positivityTrends"
+                  : granularity === "day"
+                    ? "charts.dailyTrends"
+                    : "charts.weeklyTrends",
+            )}
+            subtitle={t(
+              trendMode === "cumulative"
+                ? "charts.cumulativeTrendsSub"
+                : trendMode === "positivity"
+                  ? "charts.positivityTrendsSub"
+                  : "charts.dailyTrendsSub",
+            )}
+            action={
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
+                  {(["daily", "cumulative", "positivity"] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setTrendMode(m)}
+                      className={`px-3 py-1.5 whitespace-nowrap ${
+                        trendMode === m
+                          ? "bg-[var(--primary)] text-[var(--primary-fg)]"
+                          : "hover:bg-[var(--surface-2)]"
+                      }`}
+                    >
+                      {t(
+                        m === "daily"
+                          ? "charts.modeDaily"
+                          : m === "cumulative"
+                            ? "charts.modeCumulative"
+                            : "charts.modePositivity",
+                      )}
+                    </button>
+                  ))}
+                </div>
+                {granularityBadge}
+              </div>
+            }
+          />
+
+          {trendMode === "daily" && (
+            <MultiLine
+              data={dailyWithTargets}
+              xKey="week"
+              dateX
+              series={[
+                { key: "Screened", color: PALETTE.grey },
+                { key: "Enrolled", color: PALETTE.primary },
+                { key: "RDT+", color: PALETTE.pos },
+                { key: "RDT-", color: PALETTE.neg },
+                ...(hasMicro
+                  ? [
+                      { key: "Micro+", color: PALETTE.purple },
+                      { key: "Micro-", color: PALETTE.orange },
+                    ]
+                  : []),
+                { key: "TargetLow", name: t("charts.target3500"), color: PALETTE.green, dashed: true },
+                { key: "TargetHigh", name: t("charts.target5000"), color: PALETTE.orange, dashed: true },
+              ]}
+            />
+          )}
+
+          {trendMode === "cumulative" && (
+            <MultiLine
+              data={cumulative}
+              xKey="week"
+              dateX
+              series={[
+                { key: "Enrolled", name: t("charts.enrolledSeries"), color: PALETTE.primary },
+                { key: "Cases", name: t("charts.casesSeries"), color: PALETTE.pos },
+                { key: "Controls", name: t("charts.controlsSeries"), color: PALETTE.neg },
+                { key: "TargetLow", name: t("charts.target3500"), color: PALETTE.green, dashed: true },
+                { key: "TargetHigh", name: t("charts.target5000"), color: PALETTE.orange, dashed: true },
+              ]}
+            />
+          )}
+
+          {trendMode === "positivity" && (
+            <MultiLine
+              data={positivity}
+              xKey="week"
+              dateX
+              percent
+              series={[
+                { key: "Positivity", name: t("charts.positivitySeries"), color: PALETTE.pos },
+              ]}
+            />
+          )}
+        </Card>
+
+        <Card>
+          <SectionTitle title={t("map.title")} subtitle={t("map.subtitle")} />
+          <SiteMap sites={progress} />
+        </Card>
+      </div>
 
       {/* Enrollment by facility — all-sites view only (one bar per site). */}
       {!siteSelected && (
@@ -187,7 +373,7 @@ export function OverviewSection({
             subtitle={t("charts.enrollmentByFacilitySub")}
           />
           <MultiBar
-            data={facilities as unknown as Record<string, unknown>[]}
+            data={facilityCounts as unknown as Record<string, unknown>[]}
             xKey="name"
             angledX
             series={[
@@ -205,56 +391,84 @@ export function OverviewSection({
           <SectionTitle
             title={t("charts.enrollmentTrendsBySite")}
             subtitle={t(
-              trendView === "grid"
-                ? gridMetric === "cases"
-                  ? "charts.enrollmentTrendsBySiteSubGridCases"
-                  : "charts.enrollmentTrendsBySiteSubGrid"
-                : trendView === "stacked"
-                  ? "charts.enrollmentTrendsBySiteSubStacked"
-                  : "charts.enrollmentTrendsBySiteSub",
+              siteMetric === "cumulative"
+                ? "charts.enrollmentTrendsBySiteSubCumulative"
+                : siteMetric === "positivity"
+                  ? "charts.enrollmentTrendsBySiteSubPositivity"
+                  : effectiveView === "grid"
+                    ? siteMetric === "cases"
+                      ? "charts.enrollmentTrendsBySiteSubGridCases"
+                      : "charts.enrollmentTrendsBySiteSubGrid"
+                    : effectiveView === "stacked"
+                      ? "charts.enrollmentTrendsBySiteSubStacked"
+                      : "charts.enrollmentTrendsBySiteSub",
             )}
             action={
               <div className="flex flex-wrap items-center justify-end gap-2">
-                {trendView === "grid" && (
-                  <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
-                    {(["all", "cases"] as const).map((m) => (
-                      <button
-                        key={m}
-                        onClick={() => setGridMetric(m)}
-                        className={`px-3 py-1.5 whitespace-nowrap ${
-                          gridMetric === m
-                            ? "bg-[var(--primary)] text-[var(--primary-fg)]"
-                            : "hover:bg-[var(--surface-2)]"
-                        }`}
-                      >
-                        {t(m === "all" ? "charts.gridAll" : "charts.gridCasesOnly")}
-                      </button>
-                    ))}
-                  </div>
-                )}
                 <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
-                  {(["grid", "line", "stacked"] as const).map((v) => (
+                  {(["all", "cases", "cumulative", "positivity"] as const).map((m) => (
                     <button
-                      key={v}
-                      onClick={() => setTrendView(v)}
-                      className={`px-3 py-1.5 ${
-                        trendView === v
+                      key={m}
+                      onClick={() => setSiteMetric(m)}
+                      className={`px-3 py-1.5 whitespace-nowrap ${
+                        siteMetric === m
                           ? "bg-[var(--primary)] text-[var(--primary-fg)]"
                           : "hover:bg-[var(--surface-2)]"
                       }`}
                     >
                       {t(
-                        v === "grid" ? "charts.viewGrid" : v === "line" ? "charts.viewLine" : "charts.viewStacked",
+                        m === "all"
+                          ? "charts.gridAll"
+                          : m === "cases"
+                            ? "charts.gridCasesOnly"
+                            : m === "cumulative"
+                              ? "charts.modeCumulative"
+                              : "charts.modePositivity",
                       )}
                     </button>
                   ))}
+                </div>
+                <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
+                  {(["grid", "line", "stacked"] as const)
+                    // Stacking can't represent cumulative totals or percentages.
+                    .filter((v) => v !== "stacked" || stackable)
+                    .map((v) => (
+                      <button
+                        key={v}
+                        onClick={() => setTrendView(v)}
+                        className={`px-3 py-1.5 ${
+                          effectiveView === v
+                            ? "bg-[var(--primary)] text-[var(--primary-fg)]"
+                            : "hover:bg-[var(--surface-2)]"
+                        }`}
+                      >
+                        {t(
+                          v === "grid" ? "charts.viewGrid" : v === "line" ? "charts.viewLine" : "charts.viewStacked",
+                        )}
+                      </button>
+                    ))}
                 </div>
                 {granularityBadge}
               </div>
             }
           />
 
-          {trendView === "line" && (
+          {/* Cumulative / positivity: one full-width chart, all sites overlaid. */}
+          {siteMetricView && effectiveView === "line" && (
+            <>
+              <MultiLine
+                data={siteMetricView.rows}
+                xKey="week"
+                dateX
+                percent={siteMetricView.percent}
+                legend={false}
+                series={siteMetricView.series}
+              />
+              <ChartLegend series={siteMetricView.series} />
+            </>
+          )}
+
+          {!siteMetricView && effectiveView === "line" && (
             <>
               <div className="grid lg:grid-cols-3 gap-4">
                 {(
@@ -274,7 +488,7 @@ export function OverviewSection({
             </>
           )}
 
-          {trendView === "stacked" && (
+          {effectiveView === "stacked" && (
             <>
               <div className="grid lg:grid-cols-3 gap-4">
                 {(
@@ -302,38 +516,90 @@ export function OverviewSection({
             </>
           )}
 
-          {trendView === "grid" && (
+          {effectiveView === "grid" && (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
-                {perSiteStacks.map(({ site, data, caseTotal, total }) => (
-                  <div key={site.mrc} className="rounded-lg border border-[var(--border)] p-2">
-                    <div className="flex items-center justify-between gap-2 text-xs mb-1">
-                      <span className="font-medium truncate" title={site.name}>
-                        {site.name}
-                      </span>
-                      {gridMetric === "all" ? (
-                        <span
-                          className="tabular-nums shrink-0"
-                          title={t("charts.siteTotals", { cases: caseTotal, total })}
-                        >
-                          <span style={{ color: PALETTE.pos }}>{caseTotal}</span>
-                          <span className="muted">/{total}</span>
+                {perSiteStacks.map(({ site, data, caseTotal, total }) => {
+                  // Cumulative / positivity cells read a single site's column
+                  // out of the shared row-set and draw it as a line.
+                  const lineRows: Record<string, number | string | null>[] | null = siteMetricView
+                    ? siteMetricView.rows.map((r) => {
+                        const cell: Record<string, number | string | null> = {
+                          week: r.week as string,
+                          [site.name]: (r[site.name] as number | null) ?? null,
+                        };
+                        if (siteMetric === "cumulative") {
+                          cell.TargetLow = r.TargetLow as number;
+                          cell.TargetHigh = r.TargetHigh as number;
+                        }
+                        return cell;
+                      })
+                    : null;
+                  const cellSeries = siteMetricView
+                    ? [
+                        { key: site.name, color: cycleColor(0) },
+                        ...(siteMetric === "cumulative"
+                          ? [
+                              { key: "TargetLow", color: PALETTE.green, dashed: true },
+                              { key: "TargetHigh", color: PALETTE.orange, dashed: true },
+                            ]
+                          : []),
+                      ]
+                    : [];
+                  const last = lineRows?.length ? lineRows[lineRows.length - 1][site.name] : null;
+
+                  return (
+                    <div key={site.mrc} className="rounded-lg border border-[var(--border)] p-2">
+                      <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                        <span className="font-medium truncate" title={site.name}>
+                          {site.name}
                         </span>
+                        {siteMetric === "all" ? (
+                          <span
+                            className="tabular-nums shrink-0"
+                            title={t("charts.siteTotals", { cases: caseTotal, total })}
+                          >
+                            <span style={{ color: PALETTE.pos }}>{caseTotal}</span>
+                            <span className="muted">/{total}</span>
+                          </span>
+                        ) : siteMetric === "cases" ? (
+                          <span className="muted tabular-nums shrink-0">{caseTotal}</span>
+                        ) : (
+                          <span className="muted tabular-nums shrink-0">
+                            {last == null ? "—" : siteMetric === "positivity" ? `${last}%` : last}
+                          </span>
+                        )}
+                      </div>
+                      {lineRows ? (
+                        <MiniLine
+                          data={lineRows}
+                          xKey="week"
+                          series={cellSeries}
+                          percent={siteMetricView!.percent}
+                          domainMax={siteMetricView!.domainMax}
+                        />
                       ) : (
-                        <span className="muted tabular-nums shrink-0">{caseTotal}</span>
+                        <MiniBar
+                          data={data}
+                          xKey="week"
+                          stacked={siteMetric === "all"}
+                          series={siteMetric === "all" ? stackSeries : [stackSeries[0]]}
+                          domainMax={siteMetric === "all" ? stackMax : trendMax.cases}
+                        />
                       )}
                     </div>
-                    <MiniBar
-                      data={data}
-                      xKey="week"
-                      stacked={gridMetric === "all"}
-                      series={gridMetric === "all" ? stackSeries : [stackSeries[0]]}
-                      domainMax={gridMetric === "all" ? stackMax : trendMax.cases}
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              {gridMetric === "all" && <ChartLegend series={stackSeries} />}
+              {siteMetric === "all" && <ChartLegend series={stackSeries} />}
+              {siteMetric === "cumulative" && (
+                <ChartLegend
+                  series={[
+                    { key: "TargetLow", name: t("charts.targetSiteLow"), color: PALETTE.green },
+                    { key: "TargetHigh", name: t("charts.targetSiteHigh"), color: PALETTE.orange },
+                  ]}
+                />
+              )}
             </>
           )}
         </Card>

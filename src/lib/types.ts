@@ -17,6 +17,9 @@ export interface Facility {
   district: string | null;
   region: string | null;
   transmission_zone: string | null;
+  /** Null until the coordinate seed has been run (Uganda sites have none yet). */
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface Enrollee {

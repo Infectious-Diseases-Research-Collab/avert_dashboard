@@ -28,8 +28,19 @@ create table if not exists public.facilities (
   district          text,
   region            text,          -- BF only
   transmission_zone text,          -- BF only
+  latitude          double precision,
+  longitude         double precision,
   primary key (country, mrc)
 );
+
+-- Idempotent migration for existing databases (`create table if not exists`
+-- above is a no-op once the table exists). Coordinates live here rather than
+-- in their own table: they're a 1:1 attribute of a facility, and this table is
+-- already fetched wholesale and RLS-scoped by country. Null until seeded, and
+-- the map simply omits sites without coordinates.
+alter table public.facilities
+  add column if not exists latitude double precision,
+  add column if not exists longitude double precision;
 
 -- ---------------------------------------------------------------------
 -- Data tables (one row per source record; typed cols + full raw jsonb)

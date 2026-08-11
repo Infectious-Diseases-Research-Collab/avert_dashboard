@@ -129,6 +129,8 @@ export function DashboardShell({
   const sectionProps = {
     enrollees: filtered,
     testType,
+    // Country-scoped so the map only plots sites the current filter covers.
+    facilities: facilityOptions,
     facilityNames,
     villageNames,
     completedBarcodes: completedSet,

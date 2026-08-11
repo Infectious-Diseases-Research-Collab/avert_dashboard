@@ -304,6 +304,244 @@ export function enrollmentTrendsBySite(
 }
 
 // ---------------------------------------------------------------------------
+// Cumulative trends, enrollment targets, and test positivity
+// ---------------------------------------------------------------------------
+
+/** Study-wide daily enrollment targets (Burkina Faso). */
+export const DAILY_TARGETS = { low: 46, high: 65 } as const;
+/** Per-site daily enrollment targets. 12 sites x 4 = 48 ~ 46; x 5.5 = 66 ~ 65. */
+export const SITE_DAILY_TARGETS = { low: 4, high: 5.5 } as const;
+
+/** Earliest enrollment day present in the data — day 1 of the study. */
+export function studyStartKey(screened: Enrollee[]): string | null {
+  let min: string | null = null;
+  for (const e of screened) {
+    const k = dayStart(e.startdate);
+    if (k && (min === null || k < min)) min = k;
+  }
+  return min;
+}
+
+/** Latest enrollment day present in the data. */
+export function studyEndKey(screened: Enrollee[]): string | null {
+  let max: string | null = null;
+  for (const e of screened) {
+    const k = dayStart(e.startdate);
+    if (k && (max === null || k > max)) max = k;
+  }
+  return max;
+}
+
+/**
+ * Days of study elapsed at the END of a bucket, 1-based (first day = 1).
+ * Weekly buckets are credited through their last day, clamped to the last day
+ * that actually has data so the final partial week doesn't inflate its target.
+ */
+export function studyDayIndex(
+  bucketKey: string,
+  startKey: string,
+  granularity: TrendGranularity,
+  maxDataKey: string,
+): number {
+  const start = parseDate(startKey);
+  const bucket = parseDate(bucketKey);
+  const maxData = parseDate(maxDataKey);
+  if (!start || !bucket || !maxData) return 0;
+  let end = bucket;
+  if (granularity === "week") {
+    const weekEnd = new Date(bucket.getTime() + 6 * MS_DAY);
+    end = weekEnd.getTime() > maxData.getTime() ? maxData : weekEnd;
+  }
+  return Math.max(1, Math.round(daysBetween(end, start)) + 1);
+}
+
+/** Running sum of the named columns, leaving other fields untouched. */
+export function toCumulative<T extends object>(rows: T[], keys: string[]): T[] {
+  const running = new Map<string, number>();
+  return rows.map((row) => {
+    const src = row as Record<string, unknown>;
+    const out = { ...src };
+    for (const k of keys) {
+      const v = src[k];
+      const next = (running.get(k) ?? 0) + (typeof v === "number" ? v : 0);
+      running.set(k, next);
+      out[k] = next;
+    }
+    return out as T;
+  });
+}
+
+export interface CumulativePoint {
+  week: string;
+  Enrolled: number;
+  Cases: number;
+  Controls: number;
+  [target: string]: number | string;
+}
+
+/**
+ * Cumulative enrolled / cases / controls over time. Buckets with no enrollment
+ * are still emitted (carrying the previous running total) so the line doesn't
+ * jump across gaps and the target comparison stays honest.
+ */
+export function cumulativeTrends(
+  screened: Enrollee[],
+  testType: TestType,
+  granularity: TrendGranularity = "week",
+): CumulativePoint[] {
+  const enrolled = screened.filter(isEnrolled);
+  const dates = enrolled.map((e) => parseDate(e.startdate)).filter((d): d is Date => d !== null);
+  const buckets = bucketKeysInRange(dates, granularity);
+
+  const per = new Map<string, { Enrolled: number; Cases: number; Controls: number }>();
+  for (const b of buckets) per.set(b, { Enrolled: 0, Cases: 0, Controls: 0 });
+  for (const e of enrolled) {
+    const key = granularity === "day" ? dayStart(e.startdate) : weekStart(e.startdate);
+    const row = key ? per.get(key) : undefined;
+    if (!row) continue;
+    row.Enrolled += 1;
+    const r = testResult(e, testType);
+    if (r === 1) row.Cases += 1;
+    if (r === 0) row.Controls += 1;
+  }
+
+  const flat = buckets.map((b) => ({ week: b, ...per.get(b)! }));
+  return toCumulative(flat, ["Enrolled", "Cases", "Controls"]) as CumulativePoint[];
+}
+
+export interface PositivityPoint {
+  week: string;
+  Positivity: number | null;
+}
+
+/**
+ * Test positivity (cases / enrolled, as a percentage) per bucket. Buckets with
+ * no enrollees yield null rather than 0 so the line breaks instead of dropping
+ * to the axis, which would read as "positivity was zero that day".
+ */
+export function positivityTrends(
+  screened: Enrollee[],
+  testType: TestType,
+  granularity: TrendGranularity = "week",
+): PositivityPoint[] {
+  const enrolled = screened.filter(isEnrolled);
+  const dates = enrolled.map((e) => parseDate(e.startdate)).filter((d): d is Date => d !== null);
+  const buckets = bucketKeysInRange(dates, granularity);
+
+  const per = new Map<string, { n: number; cases: number }>();
+  for (const b of buckets) per.set(b, { n: 0, cases: 0 });
+  for (const e of enrolled) {
+    const key = granularity === "day" ? dayStart(e.startdate) : weekStart(e.startdate);
+    const row = key ? per.get(key) : undefined;
+    if (!row) continue;
+    const r = testResult(e, testType);
+    if (r === null) continue; // untested records can't inform positivity
+    row.n += 1;
+    if (r === 1) row.cases += 1;
+  }
+
+  return buckets.map((b) => {
+    const row = per.get(b)!;
+    return {
+      week: b,
+      Positivity: row.n ? Math.round((row.cases / row.n) * 1000) / 10 : null,
+    };
+  });
+}
+
+/** Per-site positivity rows, derived from an existing enrollmentTrendsBySite result. */
+export function positivityBySite(trends: TrendsBySite): Record<string, number | string | null>[] {
+  const casesByWeek = new Map(trends.cases.map((r) => [String(r.week), r]));
+  return trends.enrolled.map((row) => {
+    const out: Record<string, number | string | null> = { week: String(row.week) };
+    for (const s of trends.sites) {
+      const n = (row[s.name] as number) || 0;
+      const c = (casesByWeek.get(String(row.week))?.[s.name] as number) || 0;
+      out[s.name] = n ? Math.round((c / n) * 1000) / 10 : null;
+    }
+    return out;
+  });
+}
+
+/**
+ * Add TargetLow/TargetHigh columns to a bucketed row-set. Flat targets scale a
+ * daily rate by the bucket width (a weekly bucket's target is 7x the daily
+ * rate); cumulative targets are rate x days elapsed, so they slope upward.
+ */
+export function withTargetColumns<T extends object>(
+  rows: T[],
+  targets: { low: number; high: number },
+  granularity: TrendGranularity,
+  startKey: string | null,
+  maxDataKey: string | null,
+  cumulative: boolean,
+): (T & { TargetLow: number; TargetHigh: number })[] {
+  const perBucket = granularity === "week" ? 7 : 1;
+  return rows.map((row) => {
+    if (!cumulative) {
+      return { ...row, TargetLow: targets.low * perBucket, TargetHigh: targets.high * perBucket };
+    }
+    const week = String((row as Record<string, unknown>).week ?? "");
+    const day =
+      startKey && maxDataKey ? studyDayIndex(week, startKey, granularity, maxDataKey) : 0;
+    return {
+      ...row,
+      TargetLow: Math.round(targets.low * day * 10) / 10,
+      TargetHigh: Math.round(targets.high * day * 10) / 10,
+    };
+  });
+}
+
+export interface SiteProgress {
+  mrc: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  enrolled: number;
+  target: number;
+  /** enrolled / target; 1 means exactly on pace. */
+  ratio: number;
+}
+
+/**
+ * Cumulative enrollment per site measured against a per-site daily target, for
+ * the map. Only facilities that have coordinates are returned.
+ */
+export function siteProgress(
+  screened: Enrollee[],
+  facilities: { mrc: string; name: string; latitude?: number | null; longitude?: number | null }[],
+  ratePerDay: number,
+): SiteProgress[] {
+  const start = studyStartKey(screened);
+  const end = studyEndKey(screened);
+  const startD = parseDate(start);
+  const endD = parseDate(end);
+  const days = startD && endD ? Math.max(1, Math.round(daysBetween(endD, startD)) + 1) : 0;
+
+  const counts = new Map<string, number>();
+  for (const e of screened.filter(isEnrolled)) {
+    const mrc = e.mrc ?? "?";
+    counts.set(mrc, (counts.get(mrc) ?? 0) + 1);
+  }
+
+  const target = ratePerDay * days;
+  return facilities
+    .filter((f) => typeof f.latitude === "number" && typeof f.longitude === "number")
+    .map((f) => {
+      const enrolled = counts.get(f.mrc) ?? 0;
+      return {
+        mrc: f.mrc,
+        name: f.name,
+        latitude: f.latitude as number,
+        longitude: f.longitude as number,
+        enrolled,
+        target,
+        ratio: target > 0 ? enrolled / target : 0,
+      };
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Enrollment by village (site-specific view; needs the villages name lookup)
 // ---------------------------------------------------------------------------
 

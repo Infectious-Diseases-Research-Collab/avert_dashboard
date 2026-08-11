@@ -45,6 +45,21 @@
   "charts": {
     "weeklyTrends": "Tendances hebdomadaires d'inclusion",
     "dailyTrends": "Tendances quotidiennes d'inclusion",
+    "dailyTrendsSub": "Inclusions par période, comparées aux objectifs quotidiens",
+    "cumulativeTrends": "Inclusions cumulées",
+    "cumulativeTrendsSub": "Totaux cumulés depuis la première inclusion, comparés au rythme cible",
+    "positivityTrends": "Taux de positivité",
+    "positivityTrendsSub": "Cas en proportion des participants inclus, dans le temps",
+    "modeDaily": "Quotidien",
+    "modeCumulative": "Cumulé",
+    "modePositivity": "Positivité",
+    "positivitySeries": "Positivité",
+    "target3500": "Objectif (3500)",
+    "target5000": "Objectif (5000)",
+    "targetSiteLow": "Objectif (4/jour)",
+    "targetSiteHigh": "Objectif (5,5/jour)",
+    "enrollmentTrendsBySiteSubCumulative": "Inclusions cumulées par site, comparées au rythme cible par site",
+    "enrollmentTrendsBySiteSubPositivity": "Cas en proportion des participants inclus, par site",
     "dailyView": "Vue quotidienne",
     "weeklyView": "Vue hebdomadaire",
     "viewGrid": "Grille",
@@ -173,6 +188,16 @@
     "dismissedAction": "Écarté",
     "reopenedAction": "Rouvert",
     "noAuditEntries": "Aucune action d'écartement/réouverture pour l'instant."
+  },
+  "map": {
+    "title": "Progression par site",
+    "subtitle": "Inclusions cumulées comparées à un objectif de 4/jour par site",
+    "onTrack": "Dans les temps (≥90 %)",
+    "near": "Proche (60–89 %)",
+    "behind": "En retard (<60 %)",
+    "hoverHint": "Survolez un site pour les détails",
+    "noCoordinates": "Aucune coordonnée de site",
+    "noCoordinatesHint": "Exécutez le script de coordonnées des formations sanitaires dans Supabase pour afficher les sites sur la carte."
   },
   "download": {
     "title": "Télécharger les données",

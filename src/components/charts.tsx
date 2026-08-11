@@ -64,6 +64,9 @@ export interface Series {
   key: string;
   color: string;
   name?: string;
+  /** Draw as a dashed line — used for target/reference series so they read as
+   * a goal rather than as observed data. Only honoured by line charts. */
+  dashed?: boolean;
 }
 
 /** Max numeric value of `keys` across `rows` — used as a shared y-axis domain
@@ -138,6 +141,48 @@ export function MiniBar<T extends object>({
   );
 }
 
+/** Line counterpart to MiniBar for small-multiples grids — same hidden axes,
+ * shared `domainMax` and hover tooltip. Used for cumulative and positivity
+ * per-site cells, where a running line reads better than bars. */
+export function MiniLine<T extends object>({
+  data,
+  xKey,
+  series,
+  domainMax,
+  percent = false,
+  height = 72,
+}: {
+  data: T[];
+  xKey: string;
+  series: Series[];
+  domainMax: number;
+  percent?: boolean;
+  height?: number;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <LineChart data={data} margin={{ top: 2, right: 2, left: 2, bottom: 0 }}>
+        <XAxis dataKey={xKey} hide />
+        <YAxis hide domain={[0, percent ? 100 : domainMax]} />
+        <Tooltip {...tooltipStyle()} labelFormatter={(v) => fmtWeek(String(v))} />
+        {series.map((s) => (
+          <Line
+            key={s.key}
+            type="linear"
+            dataKey={s.key}
+            name={s.name ?? s.key}
+            stroke={s.color}
+            strokeWidth={s.dashed ? 1.25 : 1.75}
+            strokeDasharray={s.dashed ? "5 3" : undefined}
+            dot={false}
+            connectNulls
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
 export function MultiLine<T extends object>({
   data,
   xKey,
@@ -181,7 +226,8 @@ export function MultiLine<T extends object>({
             dataKey={s.key}
             name={s.name ?? s.key}
             stroke={s.color}
-            strokeWidth={2}
+            strokeWidth={s.dashed ? 1.5 : 2}
+            strokeDasharray={s.dashed ? "6 4" : undefined}
             dot={false}
             connectNulls
           />

@@ -45,6 +45,21 @@
   "charts": {
     "weeklyTrends": "Weekly enrollment trends",
     "dailyTrends": "Daily enrollment trends",
+    "dailyTrendsSub": "Enrollment per period, against the daily enrollment targets",
+    "cumulativeTrends": "Cumulative enrollment",
+    "cumulativeTrendsSub": "Running totals since the first enrollment, against the target pace",
+    "positivityTrends": "Test positivity rate",
+    "positivityTrendsSub": "Cases as a share of enrolled participants, over time",
+    "modeDaily": "Daily",
+    "modeCumulative": "Cumulative",
+    "modePositivity": "Positivity",
+    "positivitySeries": "Positivity",
+    "target3500": "Target (3500)",
+    "target5000": "Target (5000)",
+    "targetSiteLow": "Target (4/day)",
+    "targetSiteHigh": "Target (5.5/day)",
+    "enrollmentTrendsBySiteSubCumulative": "Cumulative enrollment per site, against the per-site target pace",
+    "enrollmentTrendsBySiteSubPositivity": "Cases as a share of enrolled participants, per site",
     "dailyView": "Daily view",
     "weeklyView": "Weekly view",
     "viewGrid": "Grid",
@@ -173,6 +188,16 @@
     "dismissedAction": "Dismissed",
     "reopenedAction": "Reopened",
     "noAuditEntries": "No dismiss/reopen actions yet."
+  },
+  "map": {
+    "title": "Site progress",
+    "subtitle": "Cumulative enrollment against a 4/day per-site target",
+    "onTrack": "On track (≥90%)",
+    "near": "Near (60–89%)",
+    "behind": "Behind (<60%)",
+    "hoverHint": "Hover a site for details",
+    "noCoordinates": "No site coordinates",
+    "noCoordinatesHint": "Run the facility coordinate seed in Supabase to show sites on the map."
   },
   "download": {
     "title": "Download data",
