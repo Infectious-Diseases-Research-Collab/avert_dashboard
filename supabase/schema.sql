@@ -156,11 +156,17 @@ create table if not exists public.data_quality_issues (
   -- matches two or more others at the same facility produces two rows with
   -- an otherwise-identical identity, and refresh_quality_issues()'s
   -- ON CONFLICT upsert fails with "cannot affect row a second time".
-  related_barcode text
+  related_barcode text,
+  -- The enrollee's uniqueid, which is what an issue's identity is keyed on.
+  -- subjid above is a display value only: subject IDs get reissued by a
+  -- device that lost its database and then corrected on the way in, so an
+  -- issue keyed on subjid would lose its history the moment the value it was
+  -- filed under changed. uniqueid never changes.
+  uniqueid text
 );
 -- Stable identity so re-running the check pass reopens/resolves rather than duplicates.
 create unique index if not exists dq_identity_idx on public.data_quality_issues (
-  check_code, coalesce(subjid,''), coalesce(barcode,''), coalesce(field,''), coalesce(related_barcode,'')
+  check_code, coalesce(uniqueid,''), coalesce(barcode,''), coalesce(field,''), coalesce(related_barcode,'')
 );
 create index if not exists dq_status_idx on public.data_quality_issues (status);
 create index if not exists dq_country_idx on public.data_quality_issues (country);
@@ -177,11 +183,15 @@ alter table public.data_quality_issues
 
 alter table public.data_quality_issues
   add column if not exists related_barcode text;
+alter table public.data_quality_issues
+  add column if not exists uniqueid text;
 -- `create index if not exists` above is a no-op if dq_identity_idx already
--- exists under the old 4-column definition, so widen it explicitly.
+-- exists under an earlier definition (4-column, or 5-column keyed on subjid),
+-- so restate it explicitly. Re-keying identity from subjid to uniqueid is
+-- widening in practice, never narrowing, so it cannot fail on existing rows.
 drop index if exists public.dq_identity_idx;
 create unique index dq_identity_idx on public.data_quality_issues (
-  check_code, coalesce(subjid,''), coalesce(barcode,''), coalesce(field,''), coalesce(related_barcode,'')
+  check_code, coalesce(uniqueid,''), coalesce(barcode,''), coalesce(field,''), coalesce(related_barcode,'')
 );
 
 -- Full history of manual dismiss/reopen actions on data_quality_issues (who,

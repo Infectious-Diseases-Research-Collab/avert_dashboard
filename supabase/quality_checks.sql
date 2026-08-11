@@ -18,9 +18,6 @@
 -- use the current field names/logic with the same intent.
 --
 -- NOT ported (missing a data source, not a bug):
---   * "barcode not on generated list" — needs the barcode-allocation
---     reference file (e.g. used_ids_r21.csv), which isn't part of this
---     pipeline yet. Add a reference table + loader step if wanted.
 --   * "01b Smear Data Quality Checks" — that script wasn't provided.
 --
 -- refresh_quality_issues() recomputes the full set of currently-firing
@@ -31,7 +28,16 @@
 --   * a manually `dismissed` issue is left alone even if it keeps firing
 --   (this also cleans up any issues left over from a previous version
 --    of this function, since their check_code will simply stop firing)
--- Identity of an issue = (check_code, subjid, barcode, field, related_barcode).
+--
+-- Identity of an issue = (check_code, uniqueid, barcode, field,
+-- related_barcode). It is keyed on `uniqueid` — the one identifier a
+-- record never changes — rather than `subjid`, precisely because subject
+-- IDs DO get reissued and corrected (see duplicate_subjid below, and
+-- corrections/subjid_corrections.csv in the avert_data repo). Keying on
+-- subjid would make an issue lose its history the moment the value it
+-- was filed under got corrected. `subjid` is still stored and refreshed
+-- on every upsert, as a display value.
+--
 -- related_barcode is null for every check except possible_duplicate_name,
 -- where it's the other participant's barcode -- without it, a participant
 -- matching two or more others at the same facility would produce two rows
@@ -78,7 +84,7 @@ begin
 
   -- 1. Missing barcode
   select e.country, 'missing_barcode'::text as check_code, 'warning'::text as severity,
-         e.subjid, e.barcode, e.mrc, 'barcode'::text as field, null::text as related_barcode,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, 'barcode'::text as field, null::text as related_barcode,
          'Enrolled participant is missing a study barcode.'::text as description,
          'Le participant inclus n''a pas de code-barres d''étude.'::text as description_fr
   from enrolled e
@@ -87,7 +93,7 @@ begin
   union all
   -- 2. Missing core demographics
   select e.country, 'missing_demographics', 'warning',
-         e.subjid, e.barcode, e.mrc, 'agemonths_calculated/gender/village', null,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, 'agemonths_calculated/gender/village', null,
          'Missing age, sex, or village for an enrolled participant.',
          'Âge, sexe ou village manquant pour un participant inclus.'
   from enrolled e
@@ -97,7 +103,7 @@ begin
   union all
   -- 3. Missing malaria diagnostic result
   select e.country, 'missing_diagnostic', 'warning',
-         e.subjid, e.barcode, e.mrc, 'diagnostic', null,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, 'diagnostic', null,
          'Missing malaria diagnostic type for an enrolled participant.',
          'Type de diagnostic du paludisme manquant pour un participant inclus.'
   from enrolled e
@@ -106,7 +112,7 @@ begin
   union all
   -- 4. Missing vaccine-card status
   select e.country, 'missing_vx_card', 'warning',
-         e.subjid, e.barcode, e.mrc, 'vx_card', null,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, 'vx_card', null,
          'Missing vaccine-card status for an enrolled participant.',
          'Statut de la carte de vaccination manquant pour un participant inclus.'
   from enrolled e
@@ -117,7 +123,7 @@ begin
   -- vx_doses_received_rtss = 1 -- that means this section of the form was
   -- itself skipped by design, so a null vx_any here is expected, not missing.
   select e.country, 'missing_vx_any', 'warning',
-         e.subjid, e.barcode, e.mrc, 'vx_any', null,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, 'vx_any', null,
          'Missing "received any vaccine doses" (yes/no) for an enrolled participant.',
          'Réponse manquante à "a reçu des doses de vaccin" pour un participant inclus.'
   from enrolled e
@@ -128,7 +134,7 @@ begin
   union all
   -- 6. vx_any = yes but the number of doses received is missing
   select e.country, 'missing_vx_doses_received', 'warning',
-         e.subjid, e.barcode, e.mrc, 'vx_doses_received', null,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, 'vx_doses_received', null,
          'Participant received doses but the number of doses is missing.',
          'Le participant a reçu des doses mais le nombre de doses est manquant.'
   from enrolled e
@@ -138,7 +144,7 @@ begin
   -- 7-10. Missing dose-detail fields (where/date/verification) for each
   -- reported dose, gated by the number of doses actually received.
   select e.country, 'missing_dose_info', 'warning',
-         e.subjid, e.barcode, e.mrc, d.field, null,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, d.field, null,
          format('Missing detail (date, location, or verification) for %s.', d.field),
          format('Détail manquant (date, lieu ou vérification) pour %s.', d.field)
   from enrolled e
@@ -156,7 +162,7 @@ begin
   -- vx_doses_received_rtss = 1 -- that means this section of the form was
   -- itself skipped by design, so nulls here are expected, not missing.
   select e.country, 'missing_malaria_risk', 'warning',
-         e.subjid, e.barcode, e.mrc, 'timetobed/structuresprayed/bednetlastnight', null,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, 'timetobed/structuresprayed/bednetlastnight', null,
          'Missing malaria risk-behavior data (bedtime, spraying, or bednet use).',
          'Données sur les comportements à risque de paludisme manquantes (heure du coucher, pulvérisation ou moustiquaire).'
   from enrolled e
@@ -171,7 +177,7 @@ begin
   -- vx_doses_received_rtss = 1 -- that means this section of the form was
   -- itself skipped by design, so nulls here are expected, not missing.
   select e.country, 'missing_prevdiag', 'warning',
-         e.subjid, e.barcode, e.mrc, 'prevdiag', null,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, 'prevdiag', null,
          'Missing previous-diagnosis data (or missing date of a reported previous diagnosis).',
          'Données de diagnostic antérieur manquantes (ou date manquante pour un diagnostic antérieur signalé).'
   from enrolled e
@@ -183,7 +189,7 @@ begin
   union all
   -- 13. Barcode doesn't match the expected per-country prefix
   select e.country, 'barcode_country_mismatch', 'error',
-         e.subjid, e.barcode, e.mrc, 'barcode', null,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, 'barcode', null,
          format('Barcode %s does not match the expected prefix for %s.', e.barcode, e.country),
          format('Le code-barres %s ne correspond pas au préfixe attendu pour %s.', e.barcode, e.country)
   from enrolled e
@@ -194,7 +200,7 @@ begin
   union all
   -- 14. Barcode re-entry mismatch (barcode vs barcode2)
   select e.country, 'barcode_reentry_mismatch', 'error',
-         e.subjid, e.barcode, e.mrc, 'barcode2', null,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, 'barcode2', null,
          'Barcode and re-entered barcode (barcode2) do not match.',
          'Le code-barres et le code-barres ressaisi (barcode2) ne correspondent pas.'
   from enrolled e
@@ -207,7 +213,7 @@ begin
   -- the source QA script — flags records that may predate/postdate the
   -- protocol's original enrollment window).
   select e.country, 'age_ineligible_reference_date', 'error',
-         e.subjid, e.barcode, e.mrc,
+         e.uniqueid, e.subjid, e.barcode, e.mrc,
          case when e.country = 'UG' then 'age_at_apr2025' else 'age_at_sep2023' end, null,
          format('Age at program reference date (%s months) exceeds the eligibility threshold.',
                 case when e.country = 'UG' then e.raw->>'age_at_apr2025' else e.raw->>'age_at_sep2023' end),
@@ -220,7 +226,7 @@ begin
   union all
   -- 16. Main consent not marked as provided
   select e.country, 'consent_not_provided', 'error',
-         e.subjid, e.barcode, e.mrc, 'consent', null,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, 'consent', null,
          'Main consent is not marked as provided for an enrolled participant.',
          'Le consentement principal n''est pas marqué comme fourni pour un participant inclus.'
   from enrolled e
@@ -229,7 +235,7 @@ begin
   union all
   -- 17. Sample/specimen consent not marked as provided
   select e.country, 'consent2_not_provided', 'error',
-         e.subjid, e.barcode, e.mrc, 'consent2', null,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, 'consent2', null,
          'Sample/specimen consent is not marked as provided for an enrolled participant.',
          'Le consentement pour l''échantillon n''est pas marqué comme fourni pour un participant inclus.'
   from enrolled e
@@ -243,9 +249,9 @@ begin
   -- (all but identical). a.barcode < b.barcode makes each pair fire once.
   -- related_barcode (b.barcode) carries the specific match so a participant
   -- matching two or more others produces one row per match instead of
-  -- colliding on (check_code, subjid, barcode, field) alone.
+  -- colliding on (check_code, uniqueid, barcode, field) alone.
   select a.country, 'possible_duplicate_name', 'warning',
-         a.subjid, a.barcode, a.mrc, 'participantsname', b.barcode,
+         a.uniqueid, a.subjid, a.barcode, a.mrc, 'participantsname', b.barcode,
          format('Participant has the same date of birth and a near-identical name to barcode %s at the same facility (name distance %s).',
                 b.barcode, round((1 - similarity(upper(a.raw->>'participantsname'), upper(b.raw->>'participantsname')))::numeric, 3)),
          format('Le participant a la même date de naissance et un nom quasi identique au code-barres %s dans la même formation sanitaire (distance du nom %s).',
@@ -263,7 +269,7 @@ begin
   -- Only evaluated for a country that actually has a deployed list loaded, so
   -- an empty or not-yet-populated deployed_barcodes table never floods issues.
   select e.country, 'barcode_not_deployed', 'error',
-         e.subjid, e.barcode, e.mrc, 'barcode', null,
+         e.uniqueid, e.subjid, e.barcode, e.mrc, 'barcode', null,
          format('Barcode %s is not on the deployed barcode list for %s.', e.barcode, e.country),
          format('Le code-barres %s ne figure pas sur la liste des codes-barres déployés pour %s.', e.barcode, e.country)
   from enrolled e
@@ -272,19 +278,60 @@ begin
     and not exists (
       select 1 from public.deployed_barcodes d
       where d.country = e.country and d.barcode = e.barcode
-    );
+    )
+
+  union all
+  -- 20. The same barcode on more than one record. Barcode is the key clinic
+  -- and lab data are joined on, so a collision attaches one child's sample
+  -- results to another child's record. Checked over every record rather than
+  -- only enrolled ones: a screened-out record still consumed that barcode.
+  -- Grouped, so a barcode used by three records raises one issue, not three.
+  select e.country, 'duplicate_barcode', 'error',
+         min(e.uniqueid), min(e.subjid), e.barcode, min(e.mrc), 'barcode', null,
+         format('Barcode %s is recorded on %s different records (subject IDs %s).',
+                e.barcode, count(*), string_agg(distinct e.subjid, ', ')),
+         format('Le code-barres %s figure sur %s enregistrements differents (identifiants %s).',
+                e.barcode, count(*), string_agg(distinct e.subjid, ', '))
+  from public.enrollee e
+  where nullif(e.barcode, '') is not null
+  group by e.country, e.barcode
+  having count(*) > 1
+
+  union all
+  -- 21. The same subject ID on more than one record. A warning, not an error:
+  -- subject ID is not what clinic and lab data are joined on. It happens when
+  -- a device loses its database -- uninstalling the app does this -- because
+  -- the counter is derived from the device's own table and restarts, reissuing
+  -- IDs already given out. It still needs correcting: anything analysed by
+  -- subject ID would silently merge two children.
+  --
+  -- This is the check the loader relies on: upload_to_supabase.py uploads a
+  -- still-colliding pair as collected rather than aborting the whole pipeline,
+  -- because this raises it here. Resolve it by adding the pair to
+  -- corrections/subjid_corrections.csv via make_corrections.py in avert_data.
+  select e.country, 'duplicate_subjid', 'warning',
+         min(e.uniqueid), e.subjid, min(e.barcode), min(e.mrc), 'subjid', null,
+         format('Subject ID %s is used by %s different participants (barcodes %s).',
+                e.subjid, count(*), string_agg(e.barcode, ', ' order by e.barcode)),
+         format('L''identifiant %s est utilise par %s participants differents (codes-barres %s).',
+                e.subjid, count(*), string_agg(e.barcode, ', ' order by e.barcode))
+  from public.enrollee e
+  where nullif(e.subjid, '') is not null
+  group by e.country, e.subjid
+  having count(*) > 1;
 
   select count(*) into n_firing from _firing;
 
   -- Upsert firing issues: insert new, re-open previously resolved.
   insert into public.data_quality_issues
-    (country, check_code, severity, subjid, barcode, mrc, field, related_barcode, description, description_fr, status, detected_at, resolved_at)
-  select country, check_code, severity, subjid, barcode, mrc, field, related_barcode, description, description_fr, 'open', now(), null
+    (country, check_code, severity, uniqueid, subjid, barcode, mrc, field, related_barcode, description, description_fr, status, detected_at, resolved_at)
+  select country, check_code, severity, uniqueid, subjid, barcode, mrc, field, related_barcode, description, description_fr, 'open', now(), null
   from _firing
-  on conflict (check_code, coalesce(subjid,''), coalesce(barcode,''), coalesce(field,''), coalesce(related_barcode,''))
+  on conflict (check_code, coalesce(uniqueid,''), coalesce(barcode,''), coalesce(field,''), coalesce(related_barcode,''))
   do update set
     country        = excluded.country,
     severity       = excluded.severity,
+    subjid         = excluded.subjid,
     mrc            = excluded.mrc,
     description    = excluded.description,
     description_fr = excluded.description_fr,
@@ -303,7 +350,7 @@ begin
     and not exists (
       select 1 from _firing f
       where f.check_code = d.check_code
-        and coalesce(f.subjid,'')          = coalesce(d.subjid,'')
+        and coalesce(f.uniqueid,'')        = coalesce(d.uniqueid,'')
         and coalesce(f.barcode,'')         = coalesce(d.barcode,'')
         and coalesce(f.field,'')           = coalesce(d.field,'')
         and coalesce(f.related_barcode,'') = coalesce(d.related_barcode,'')
