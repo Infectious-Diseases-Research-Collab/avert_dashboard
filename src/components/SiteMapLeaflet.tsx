@@ -65,7 +65,7 @@ export function SiteMapLeaflet({ sites, height = 320 }: { sites: SiteProgress[];
               <Tooltip direction="top" offset={[0, -8]}>
                 <span className="font-medium">{s.name}</span>
                 <br />
-                {s.enrolled} / {Math.round(s.target)} ({Math.round(s.ratio * 100)}%)
+                {s.cases} / {Math.round(s.target)} ({Math.round(s.ratio * 100)}%)
               </Tooltip>
             </CircleMarker>
           ))}

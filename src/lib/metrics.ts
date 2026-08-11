@@ -420,11 +420,14 @@ export interface PositivityPoint {
  * to the axis, which would read as "positivity was zero that day".
  */
 /**
- * Cumulative (running cases / running enrolled) rather than per-bucket, since
- * a single day's ratio is extremely noisy at these sample sizes — one extra
- * or missing case swings a daily/site bucket by tens of points. The running
- * total settles into an actual trend instead of bouncing between 0% and 100%.
- * Null only for buckets before any enrollment has happened yet.
+ * Per-bucket (not cumulative): cases / enrolled for that day or week alone,
+ * as asked for. Daily buckets are noisy at typical daily counts, but once the
+ * dashboard's granularity switches to weekly (see pickTrendGranularity) a
+ * bucket's N is large enough for the ratio to read as an actual trend — and
+ * unlike a cumulative running average, a per-bucket ratio still shows a real
+ * recent shift instead of diluting it with all prior history. Null (not 0)
+ * for a bucket with no test results, so the line breaks rather than diving to
+ * the axis.
  */
 export function positivityTrends(
   screened: Enrollee[],
@@ -447,39 +450,29 @@ export function positivityTrends(
     if (r === 1) row.cases += 1;
   }
 
-  let runN = 0;
-  let runCases = 0;
   return buckets.map((b) => {
     const row = per.get(b)!;
-    runN += row.n;
-    runCases += row.cases;
     return {
       week: b,
-      Positivity: runN ? Math.round((runCases / runN) * 1000) / 10 : null,
+      Positivity: row.n ? Math.round((row.cases / row.n) * 1000) / 10 : null,
     };
   });
 }
 
 /**
- * Per-site cumulative positivity, derived from an existing
- * enrollmentTrendsBySite result. Same running-total rationale as
- * positivityTrends — a single site's single-day ratio is close to
- * meaningless at typical daily counts of 0-2.
+ * Per-site, per-bucket positivity, derived from an existing
+ * enrollmentTrendsBySite result. Same per-bucket rationale as
+ * positivityTrends — noisy at low daily counts, but usable once the
+ * dashboard is on weekly buckets.
  */
 export function positivityBySite(trends: TrendsBySite): Record<string, number | string | null>[] {
   const casesByWeek = new Map(trends.cases.map((r) => [String(r.week), r]));
-  const runN = new Map<string, number>();
-  const runCases = new Map<string, number>();
   return trends.enrolled.map((row) => {
     const out: Record<string, number | string | null> = { week: String(row.week) };
     for (const s of trends.sites) {
       const n = (row[s.name] as number) || 0;
       const c = (casesByWeek.get(String(row.week))?.[s.name] as number) || 0;
-      const newN = (runN.get(s.name) ?? 0) + n;
-      const newCases = (runCases.get(s.name) ?? 0) + c;
-      runN.set(s.name, newN);
-      runCases.set(s.name, newCases);
-      out[s.name] = newN ? Math.round((newCases / newN) * 1000) / 10 : null;
+      out[s.name] = n ? Math.round((c / n) * 1000) / 10 : null;
     }
     return out;
   });
@@ -519,19 +512,23 @@ export interface SiteProgress {
   name: string;
   latitude: number;
   longitude: number;
-  enrolled: number;
+  cases: number;
   target: number;
-  /** enrolled / target; 1 means exactly on pace. */
+  /** cases / target; 1 means exactly on pace. */
   ratio: number;
 }
 
 /**
- * Cumulative enrollment per site measured against a per-site daily target, for
- * the map. Only facilities that have coordinates are returned.
+ * Cumulative CASES per site measured against a per-site daily case target,
+ * for the map — per the study team: "colored by how far or close the current
+ * cumulative enrollment (of cases) is to the target ... assuming we want to
+ * enroll 4 cases per day per site." Only facilities with coordinates are
+ * returned.
  */
 export function siteProgress(
   screened: Enrollee[],
   facilities: { mrc: string; name: string; latitude?: number | null; longitude?: number | null }[],
+  testType: TestType,
   ratePerDay: number,
 ): SiteProgress[] {
   const start = studyStartKey(screened);
@@ -542,6 +539,7 @@ export function siteProgress(
 
   const counts = new Map<string, number>();
   for (const e of screened.filter(isEnrolled)) {
+    if (testResult(e, testType) !== 1) continue;
     const mrc = e.mrc ?? "?";
     counts.set(mrc, (counts.get(mrc) ?? 0) + 1);
   }
@@ -550,15 +548,15 @@ export function siteProgress(
   return facilities
     .filter((f) => typeof f.latitude === "number" && typeof f.longitude === "number")
     .map((f) => {
-      const enrolled = counts.get(f.mrc) ?? 0;
+      const cases = counts.get(f.mrc) ?? 0;
       return {
         mrc: f.mrc,
         name: f.name,
         latitude: f.latitude as number,
         longitude: f.longitude as number,
-        enrolled,
+        cases,
         target,
-        ratio: target > 0 ? enrolled / target : 0,
+        ratio: target > 0 ? cases / target : 0,
       };
     });
 }
