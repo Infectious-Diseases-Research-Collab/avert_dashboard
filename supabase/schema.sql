@@ -375,6 +375,121 @@ $$;
 grant execute on function public.set_issue_status(bigint, text) to authenticated;
 
 -- =====================================================================
+-- Vaccine-coverage verification waivers
+--
+-- The survey app triggers a verification visit whenever the reason a
+-- participant had no vaccine card is "Other" (vx_card_no = 96). Whether one is
+-- genuinely needed depends on what the free text actually says, which is a
+-- clinical judgement the app can't make -- so clinic staff turn it off here.
+-- Only "Other" can be turned off: every other reason ("left at home" and the
+-- rest) describes a card that exists and really does need verifying.
+-- =====================================================================
+
+-- Current state, one row per participant a decision has been made about.
+-- Absent = still required, which is why need_vac_cov alone is enough to build
+-- the list and this table only ever subtracts from it.
+create table if not exists public.verification_waivers (
+  uniqueid  text primary key references public.enrollee(uniqueid) on delete cascade,
+  country   text not null check (country in ('UG','BF')),
+  required  boolean not null default true,
+  set_by    text not null,
+  set_at    timestamptz not null default now()
+);
+create index if not exists verification_waivers_country_idx
+  on public.verification_waivers (country);
+
+alter table public.verification_waivers enable row level security;
+
+drop policy if exists verification_waivers_select on public.verification_waivers;
+create policy verification_waivers_select on public.verification_waivers
+  for select to authenticated using (public.auth_can_see(country));
+
+-- Append-only history of those decisions, mirroring data_quality_status_audit:
+-- the state table above only shows where a participant landed, this shows every
+-- turn-off/turn-back-on and who did it. subjid/barcode/mrc are denormalised at
+-- action time so a row (and any CSV of it) stands alone even if the enrollee
+-- record later changes.
+create table if not exists public.verification_status_audit (
+  id       bigint generated always as identity primary key,
+  uniqueid text not null,
+  country  text not null check (country in ('UG','BF')),
+  subjid   text,
+  barcode  text,
+  mrc      text,
+  action   text not null check (action in ('waived','reinstated')),
+  actor    text not null,
+  acted_at timestamptz not null default now()
+);
+create index if not exists verification_audit_uniqueid_idx
+  on public.verification_status_audit (uniqueid);
+create index if not exists verification_audit_country_idx
+  on public.verification_status_audit (country);
+
+alter table public.verification_status_audit enable row level security;
+
+drop policy if exists verification_audit_select on public.verification_status_audit;
+create policy verification_audit_select on public.verification_status_audit
+  for select to authenticated using (public.auth_can_see(country));
+
+-- Turn a vaccine-coverage visit off (p_required = false) or back on.
+-- security definer for the same reason as set_issue_status: the tables are
+-- otherwise read-only to authenticated users, and this is the one narrow write
+-- path. It only touches a participant the caller is allowed to see, and it
+-- rejects anything that isn't an "Other" case -- the dashboard hides the button
+-- for other reasons, but that is cosmetic and this is the actual guarantee.
+create or replace function public.set_verification_required(
+  p_uniqueid text, p_required boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_country text;
+  v_subjid text;
+  v_barcode text;
+  v_mrc text;
+  v_reason text;
+begin
+  select e.country, e.subjid, e.barcode, e.mrc, e.raw->>'vx_card_no'
+    into v_country, v_subjid, v_barcode, v_mrc, v_reason
+  from public.enrollee e
+  where e.uniqueid = p_uniqueid
+    and public.auth_can_see(e.country);
+
+  -- An unknown id, or one outside the caller's country access, is a silent
+  -- no-op -- same contract as set_issue_status, which deliberately doesn't
+  -- reveal whether a row it won't show you exists.
+  if not found then
+    return;
+  end if;
+
+  if v_reason is distinct from '96' then
+    raise exception
+      'Verification can only be turned off for an "Other" reason (vx_card_no = 96); % has %',
+      p_uniqueid, coalesce(v_reason, 'no reason recorded')
+      using errcode = 'check_violation';
+  end if;
+
+  insert into public.verification_waivers (uniqueid, country, required, set_by, set_at)
+  values (p_uniqueid, v_country, p_required, public.auth_email(), now())
+  on conflict (uniqueid) do update set
+    required = excluded.required,
+    set_by   = excluded.set_by,
+    set_at   = excluded.set_at;
+
+  insert into public.verification_status_audit
+    (uniqueid, country, subjid, barcode, mrc, action, actor)
+  values
+    (p_uniqueid, v_country, v_subjid, v_barcode, v_mrc,
+     case when p_required then 'reinstated' else 'waived' end,
+     public.auth_email());
+end;
+$$;
+
+grant execute on function public.set_verification_required(text, boolean) to authenticated;
+
+-- =====================================================================
 -- Signup allowlist gate
 -- Reject creation of an auth user whose email is not in allowed_users.
 -- =====================================================================

@@ -4,8 +4,14 @@ import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge, fmtNum, fmtPct } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
-import type { DataQualityIssue, DataQualityAuditEntry } from "@/lib/types";
-import type { DemogColumn, MatchScenario, Concordance } from "@/lib/metrics";
+import type { DataQualityIssue, DataQualityAuditEntry, Enrollee } from "@/lib/types";
+import { verificationState } from "@/lib/metrics";
+import type {
+  DemogColumn,
+  MatchScenario,
+  Concordance,
+  VerificationState,
+} from "@/lib/metrics";
 
 function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -146,37 +152,197 @@ export function ConcordanceTable({ c }: { c: Concordance }) {
 }
 
 // ---------------------------------------------------------------------------
-// Verification by facility
+// Verification participants
 // ---------------------------------------------------------------------------
 
-export function VerificationByFacilityTable({
+/** The reason a participant had no vaccine card. "Other" (96) is shown as the
+ *  free text the interviewer typed, never as the word "Other" -- that text is
+ *  the whole reason this row needs a human decision. An unmapped code is shown
+ *  as the code, so a new value in the instrument is visible rather than blank. */
+function reasonLabel(e: Enrollee, t: ReturnType<typeof useTranslations>): string {
+  const code = e.vx_card_no ?? "";
+  if (code === "1") return t("verification.reasonLeftAtHome");
+  if (code === "96") return e.vx_card_no_oth?.trim() || t("verification.reasonOther");
+  return code || "—";
+}
+
+type VerifSortKey = "mrc" | "subjid" | "startdate" | "status";
+
+export function VerificationParticipantsTable({
   rows,
+  facilityNames,
+  completedBarcodes,
+  waived,
+  onToggled,
 }: {
-  rows: { name: string; needed: number; completed: number; outstanding: number }[];
+  rows: Enrollee[];
+  facilityNames: Map<string, string>;
+  completedBarcodes: Set<string>;
+  /** Already includes anything toggled this session — the owning section holds
+   *  that state, so the summary cards above move at the same time as the rows. */
+  waived: Set<string>;
+  onToggled: (uniqueid: string, required: boolean) => void;
 }) {
   const t = useTranslations();
+  const [status, setStatus] = useState<VerificationState | "all">("outstanding");
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<{ key: VerifSortKey; dir: 1 | -1 }>({
+    key: "startdate",
+    dir: -1,
+  });
+  const [pending, setPending] = useState<Set<string>>(new Set());
+
+  const effWaived = waived;
+
+  async function toggleRequired(uniqueid: string, next: boolean) {
+    setPending((p) => new Set(p).add(uniqueid));
+    const supabase = createClient();
+    const { error } = await supabase.rpc("set_verification_required", {
+      p_uniqueid: uniqueid,
+      p_required: next,
+    });
+    setPending((p) => {
+      const n = new Set(p);
+      n.delete(uniqueid);
+      return n;
+    });
+    if (!error) onToggled(uniqueid, next);
+  }
+
+  const filtered = useMemo(() => {
+    let list = rows;
+    if (status !== "all") {
+      list = list.filter((e) => verificationState(e, completedBarcodes, effWaived) === status);
+    }
+    if (q.trim()) {
+      const needle = q.toLowerCase();
+      list = list.filter((e) =>
+        [e.subjid, e.barcode, e.mrc && facilityNames.get(e.mrc), e.vx_card_no_oth]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(needle)),
+      );
+    }
+    return [...list].sort((a, b) => {
+      let cmp = 0;
+      if (sort.key === "status") {
+        cmp = verificationState(a, completedBarcodes, effWaived).localeCompare(
+          verificationState(b, completedBarcodes, effWaived),
+        );
+      } else if (sort.key === "mrc") {
+        cmp = (facilityNames.get(a.mrc ?? "") ?? a.mrc ?? "").localeCompare(
+          facilityNames.get(b.mrc ?? "") ?? b.mrc ?? "",
+        );
+      } else {
+        cmp = String(a[sort.key] ?? "").localeCompare(String(b[sort.key] ?? ""));
+      }
+      return cmp * sort.dir;
+    });
+  }, [rows, status, q, sort, completedBarcodes, effWaived, facilityNames]);
+
+  function toggleSort(key: VerifSortKey) {
+    setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 }));
+  }
+
+  const SortTh = ({ k, children }: { k: VerifSortKey; children: React.ReactNode }) => (
+    <th
+      onClick={() => toggleSort(k)}
+      className="text-left font-medium muted px-3 py-2 border-b border-[var(--border)] cursor-pointer select-none hover:text-[var(--text)]"
+    >
+      {children}
+      {sort.key === k ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
+    </th>
+  );
+
+  const statusTone: Record<VerificationState, "warning" | "resolved" | "dismissed"> = {
+    outstanding: "warning",
+    done: "resolved",
+    not_required: "dismissed",
+  };
+  const statusKey: Record<VerificationState, string> = {
+    outstanding: "verification.outstanding",
+    done: "verification.done",
+    not_required: "verification.notRequired",
+  };
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr>
-            <Th>{t("filters.facility")}</Th>
-            <Th className="text-right">{t("kpi.needed")}</Th>
-            <Th className="text-right">{t("kpi.completed")}</Th>
-            <Th className="text-right">{t("kpi.outstanding")}</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.name}>
-              <Td>{r.name}</Td>
-              <Td className="text-right">{r.needed}</Td>
-              <Td className="text-right">{r.completed}</Td>
-              <Td className="text-right">{r.outstanding}</Td>
-            </tr>
+    <div>
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
+          {(["outstanding", "done", "not_required", "all"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatus(s)}
+              className={`px-3 py-1.5 ${
+                status === s
+                  ? "bg-[var(--primary)] text-[var(--primary-fg)]"
+                  : "hover:bg-[var(--surface-2)]"
+              }`}
+            >
+              {s === "all" ? t("verification.all") : t(statusKey[s])}
+            </button>
           ))}
-        </tbody>
-      </table>
+        </div>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t("verification.search")}
+          className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm outline-none focus:border-[var(--primary)] flex-1 min-w-[180px]"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="muted text-sm py-8 text-center">{t("verification.noParticipants")}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr>
+                <SortTh k="mrc">{t("filters.facility")}</SortTh>
+                <SortTh k="subjid">{t("verification.subjid")}</SortTh>
+                <Th>{t("verification.barcode")}</Th>
+                <SortTh k="startdate">{t("verification.dateOfInterview")}</SortTh>
+                <Th>{t("verification.reason")}</Th>
+                <SortTh k="status">{t("verification.status")}</SortTh>
+                <Th>{t("verification.actions")}</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((e) => {
+                const st = verificationState(e, completedBarcodes, effWaived);
+                const isOther = e.vx_card_no === "96";
+                const busy = pending.has(e.uniqueid);
+                return (
+                  <tr key={e.uniqueid}>
+                    <Td>{e.mrc ? (facilityNames.get(e.mrc) ?? e.mrc) : "—"}</Td>
+                    <Td>{e.subjid ?? "—"}</Td>
+                    <Td className="font-mono text-xs">{e.barcode ?? "—"}</Td>
+                    <Td className="text-xs">{e.startdate ?? "—"}</Td>
+                    <Td className="max-w-[320px] whitespace-normal">{reasonLabel(e, t)}</Td>
+                    <Td>
+                      <Badge tone={statusTone[st]}>{t(statusKey[st])}</Badge>
+                    </Td>
+                    <Td>
+                      {isOther ? (
+                        <button
+                          onClick={() => toggleRequired(e.uniqueid, st === "not_required")}
+                          disabled={busy}
+                          className="text-xs rounded-md border border-[var(--border)] px-2 py-1 hover:bg-[var(--surface-2)] disabled:opacity-50 whitespace-nowrap"
+                        >
+                          {st === "not_required"
+                            ? t("verification.turnBackOn")
+                            : t("verification.turnOff")}
+                        </button>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -47,6 +47,11 @@ export interface Enrollee {
   vx_dose2_date: string | null;
   vx_dose3_date: string | null;
   vx_dose4_date: string | null;
+  // Why the participant had no vaccine card, and the free text when that
+  // reason is "Other" (96). Both are projected out of the raw jsonb rather
+  // than being typed columns, so they arrive as text, not numbers.
+  vx_card_no?: string | null;
+  vx_card_no_oth?: string | null;
   // Blood-smear fields, null until blood_smear.csv is loaded.
   parasitedensity?: number | null;
   mic_positive?: number | null;
@@ -90,4 +95,12 @@ export interface DataQualityAuditEntry {
   action: "dismissed" | "reopened";
   actor: string;
   acted_at: string;
+}
+
+/** A clinic's decision that an "Other"-reason participant does not in fact
+ *  need a vaccine-coverage visit. Only rows with required = false matter;
+ *  turning one back on leaves the row behind with required = true. */
+export interface VerificationWaiver {
+  uniqueid: string;
+  required: boolean;
 }

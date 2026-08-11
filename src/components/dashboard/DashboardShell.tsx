@@ -53,6 +53,7 @@ export function DashboardShell({
   facilities,
   enrollees,
   completedBarcodes,
+  waivedVerification,
   issues,
   auditLog,
   villageLookup,
@@ -62,6 +63,7 @@ export function DashboardShell({
   facilities: Facility[];
   enrollees: Enrollee[];
   completedBarcodes: string[];
+  waivedVerification: string[];
   issues: DataQualityIssue[];
   auditLog: DataQualityAuditEntry[];
   villageLookup: [string, string][];
@@ -80,6 +82,7 @@ export function DashboardShell({
   const [testType, setTestType] = useState<TestType>("rdt");
 
   const completedSet = useMemo(() => new Set(completedBarcodes), [completedBarcodes]);
+  const waivedSet = useMemo(() => new Set(waivedVerification), [waivedVerification]);
 
   // Facilities available for the current country filter.
   const facilityOptions = useMemo(
@@ -129,6 +132,7 @@ export function DashboardShell({
     facilityNames,
     villageNames,
     completedBarcodes: completedSet,
+    waivedVerification: waivedSet,
     issues: filteredIssues,
     auditLog: filteredAuditLog,
     downloadQuery,

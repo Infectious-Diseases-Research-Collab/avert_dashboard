@@ -3,13 +3,23 @@ import { getProfile, visibleCountries } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { villageGeoKey } from "@/lib/metrics";
-import type { Country, Enrollee, Facility, DataQualityIssue, DataQualityAuditEntry } from "@/lib/types";
+import type {
+  Country,
+  Enrollee,
+  Facility,
+  DataQualityIssue,
+  DataQualityAuditEntry,
+  VerificationWaiver,
+} from "@/lib/types";
 
 const ENROLLEE_COLS =
   "uniqueid,country,subjid,barcode,mrc,district,subcounty,parish,village,startdate,enrollment_week,dob," +
   "agemonths_calculated,age_eligible,mal_test_eligible,consent_eligible,gender,sex," +
   "result,vx_card,need_vac_cov,vx_any,vx_doses_received," +
-  "vx_dose1_date,vx_dose2_date,vx_dose3_date,vx_dose4_date";
+  "vx_dose1_date,vx_dose2_date,vx_dose3_date,vx_dose4_date," +
+  // Not typed columns -- projected out of the raw jsonb, so they arrive as
+  // text. Drives the reason shown in the verification list.
+  "vx_card_no:raw->>vx_card_no,vx_card_no_oth:raw->>vx_card_no_oth";
 
 type VillageRow = {
   countryid: number;
@@ -53,7 +63,17 @@ export default async function DashboardPage() {
 
   const supabase = await createClient();
 
-  const [facilitiesRes, enrolleeRes, bloodRes, coverageRes, issuesRes, auditRes, lastRunRes, villageRows] =
+  const [
+    facilitiesRes,
+    enrolleeRes,
+    bloodRes,
+    coverageRes,
+    issuesRes,
+    auditRes,
+    waiverRes,
+    lastRunRes,
+    villageRows,
+  ] =
     await Promise.all([
       supabase.from("facilities").select("*"),
       supabase.from("enrollee").select(ENROLLEE_COLS).limit(20000),
@@ -61,6 +81,7 @@ export default async function DashboardPage() {
       supabase.from("vaccination_status").select("barcode"),
       supabase.from("data_quality_issues").select("*").order("detected_at", { ascending: false }),
       supabase.from("data_quality_status_audit").select("*").order("acted_at", { ascending: false }),
+      supabase.from("verification_waivers").select("uniqueid,required"),
       supabase
         .from("pipeline_runs")
         .select("finished_at")
@@ -99,12 +120,19 @@ export default async function DashboardPage() {
     .map((r) => r.barcode as string)
     .filter(Boolean);
 
+  // Only required = false matters: turning a visit back on leaves the row
+  // behind with required = true, which is the same as never having waived it.
+  const waivedVerification = ((waiverRes.data ?? []) as VerificationWaiver[])
+    .filter((w) => !w.required)
+    .map((w) => w.uniqueid);
+
   return (
     <DashboardShell
       profile={profile}
       facilities={facilities}
       enrollees={enrollees}
       completedBarcodes={completedBarcodes}
+      waivedVerification={waivedVerification}
       issues={issues}
       auditLog={auditLog}
       villageLookup={villageLookup}

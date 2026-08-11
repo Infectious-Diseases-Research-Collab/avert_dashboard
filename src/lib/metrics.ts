@@ -716,11 +716,34 @@ export interface VerificationSummary {
   outstanding: number;
 }
 
+/** Everyone the app flagged for a vaccine-coverage visit, waived or not. The
+ *  table shows all of them (a waived one under "Not required", so the decision
+ *  stays reviewable); only the summary cards drop the waived ones. */
+export function verificationCandidates(screened: Enrollee[]): Enrollee[] {
+  return screened.filter((e) => e.need_vac_cov === 1 && e.barcode);
+}
+
+export type VerificationState = "outstanding" | "done" | "not_required";
+
+/** The single definition of a participant's verification state, so the table,
+ *  the summary cards and the CSV export can't drift apart. A waiver wins over
+ *  a completed visit, which wins over an outstanding one. */
+export function verificationState(
+  e: Enrollee,
+  completedBarcodes: Set<string>,
+  waived: Set<string>,
+): VerificationState {
+  if (waived.has(e.uniqueid)) return "not_required";
+  if (e.barcode && completedBarcodes.has(e.barcode)) return "done";
+  return "outstanding";
+}
+
 export function verificationSummary(
   screened: Enrollee[],
   completedBarcodes: Set<string>,
+  waived: Set<string> = new Set(),
 ): VerificationSummary {
-  const need = screened.filter((e) => e.need_vac_cov === 1 && e.barcode);
+  const need = verificationCandidates(screened).filter((e) => !waived.has(e.uniqueid));
   const completed = need.filter((e) => completedBarcodes.has(e.barcode as string)).length;
   return { needed: need.length, completed, outstanding: need.length - completed };
 }

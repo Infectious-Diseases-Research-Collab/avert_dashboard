@@ -8,7 +8,7 @@ import {
   DemographicsTable,
   MatchingTable,
   ConcordanceTable,
-  VerificationByFacilityTable,
+  VerificationParticipantsTable,
   DataQualityTable,
   DataQualityAuditTable,
 } from "@/components/dashboard/tables";
@@ -30,6 +30,7 @@ import {
   timeBetweenDoses,
   concordance,
   verificationSummary,
+  verificationCandidates,
   type TestType,
   type AgeDistributionBy,
 } from "@/lib/metrics";
@@ -41,6 +42,8 @@ interface SectionProps {
   facilityNames: Map<string, string>;
   villageNames: Map<string, string>;
   completedBarcodes: Set<string>;
+  /** uniqueids a clinic has decided don't need a vaccine-coverage visit. */
+  waivedVerification: Set<string>;
   issues: DataQualityIssue[];
   auditLog: DataQualityAuditEntry[];
   downloadQuery: string;
@@ -581,28 +584,28 @@ export function VerificationSection({
   enrollees,
   facilityNames,
   completedBarcodes,
+  waivedVerification,
   downloadQuery,
 }: SectionProps) {
   const t = useTranslations();
-  const summary = useMemo(
-    () => verificationSummary(enrollees, completedBarcodes),
-    [enrollees, completedBarcodes],
-  );
-  const byFacility = useMemo(() => {
-    const map = new Map<string, { name: string; needed: number; completed: number; outstanding: number }>();
-    for (const e of enrollees.filter((x) => x.need_vac_cov === 1 && x.barcode)) {
-      const mrc = e.mrc ?? "?";
-      let r = map.get(mrc);
-      if (!r) {
-        r = { name: facilityNames.get(mrc) ?? `Site ${mrc}`, needed: 0, completed: 0, outstanding: 0 };
-        map.set(mrc, r);
-      }
-      r.needed += 1;
-      if (completedBarcodes.has(e.barcode as string)) r.completed += 1;
-      else r.outstanding += 1;
+  // Waivers toggled this session (uniqueid -> required). Held here rather than
+  // in the table so the summary cards and the rows move together; the server
+  // data only refreshes on a reload.
+  const [overrides, setOverrides] = useState<Map<string, boolean>>(new Map());
+  const effWaived = useMemo(() => {
+    const s = new Set(waivedVerification);
+    for (const [id, required] of overrides) {
+      if (required) s.delete(id);
+      else s.add(id);
     }
-    return [...map.values()].sort((a, b) => b.needed - a.needed);
-  }, [enrollees, completedBarcodes, facilityNames]);
+    return s;
+  }, [waivedVerification, overrides]);
+
+  const summary = useMemo(
+    () => verificationSummary(enrollees, completedBarcodes, effWaived),
+    [enrollees, completedBarcodes, effWaived],
+  );
+  const participants = useMemo(() => verificationCandidates(enrollees), [enrollees]);
 
   return (
     <div className="space-y-5">
@@ -622,8 +625,16 @@ export function VerificationSection({
       </Card>
 
       <Card>
-        <SectionTitle title={t("verification.byFacility")} />
-        <VerificationByFacilityTable rows={byFacility} />
+        <SectionTitle title={t("verification.participants")} subtitle={t("verification.participantsIntro")} />
+        <VerificationParticipantsTable
+          rows={participants}
+          facilityNames={facilityNames}
+          completedBarcodes={completedBarcodes}
+          waived={effWaived}
+          onToggled={(uniqueid, required) =>
+            setOverrides((m) => new Map(m).set(uniqueid, required))
+          }
+        />
       </Card>
     </div>
   );
