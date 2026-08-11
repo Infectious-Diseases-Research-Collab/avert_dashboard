@@ -142,6 +142,11 @@ export function OverviewSection({
   );
   const [trendView, setTrendView] = useState<"grid" | "line" | "stacked">("grid");
   const [siteMetric, setSiteMetric] = useState<"all" | "cases" | "cumulative" | "positivity">("all");
+  // Which series the by-site Cumulative view is cumulating. Enrolled/Cases/
+  // Controls all have up to 11 lines on their own, so — unlike the main
+  // Cumulative chart, which only ever has 3 lines total — the by-site view
+  // shows one metric at a time rather than all three overlaid.
+  const [cumulativeMetric, setCumulativeMetric] = useState<"enrolled" | "cases" | "controls">("enrolled");
   // Stacking is only meaningful for the count metrics: cumulative totals would
   // double-count and percentages don't sum. Fall back to the line view.
   const stackable = siteMetric === "all" || siteMetric === "cases";
@@ -197,23 +202,30 @@ export function OverviewSection({
     [t],
   );
 
-  // Per-site cumulative enrolled, with the per-site target lines attached so
-  // the line view can draw them without a second pass.
+  // Per-site cumulative, for whichever of Enrolled/Cases/Controls is
+  // selected. Only Enrolled has a meaningful target (4/day, 5.5/day are
+  // enrollment targets), so the target lines are attached only for it.
+  const cumulativeSourceRows = useMemo(() => {
+    if (cumulativeMetric === "cases") return trendsBySite.cases;
+    if (cumulativeMetric === "controls") return trendsBySite.controls;
+    return trendsBySite.enrolled;
+  }, [trendsBySite, cumulativeMetric]);
   const cumulativeBySite = useMemo(
     () =>
       withTargetColumns(
-        toCumulative(trendsBySite.enrolled, siteNames),
+        toCumulative(cumulativeSourceRows, siteNames),
         SITE_DAILY_TARGETS,
         granularity,
         startKey,
         endKey,
         true,
       ),
-    [trendsBySite, siteNames, granularity, startKey, endKey],
+    [cumulativeSourceRows, siteNames, granularity, startKey, endKey],
   );
   const cumulativeMax = useMemo(
-    () => seriesMax(cumulativeBySite, [...siteNames, "TargetHigh"]),
-    [cumulativeBySite, siteNames],
+    () =>
+      seriesMax(cumulativeBySite, cumulativeMetric === "enrolled" ? [...siteNames, "TargetHigh"] : siteNames),
+    [cumulativeBySite, siteNames, cumulativeMetric],
   );
   const positivityBySiteRows = useMemo(() => positivityBySite(trendsBySite), [trendsBySite]);
 
@@ -224,8 +236,12 @@ export function OverviewSection({
         rows: cumulativeBySite as unknown as Record<string, unknown>[],
         series: [
           ...siteSeries,
-          { key: "TargetLow", name: t("charts.targetSiteLow"), color: PALETTE.green, dashed: true },
-          { key: "TargetHigh", name: t("charts.targetSiteHigh"), color: PALETTE.orange, dashed: true },
+          ...(cumulativeMetric === "enrolled"
+            ? [
+                { key: "TargetLow", name: t("charts.targetSiteLow"), color: PALETTE.green, dashed: true },
+                { key: "TargetHigh", name: t("charts.targetSiteHigh"), color: PALETTE.orange, dashed: true },
+              ]
+            : []),
         ],
         domainMax: cumulativeMax,
         percent: false,
@@ -240,7 +256,7 @@ export function OverviewSection({
       };
     }
     return null;
-  }, [siteMetric, cumulativeBySite, cumulativeMax, positivityBySiteRows, siteSeries, t]);
+  }, [siteMetric, cumulativeMetric, cumulativeBySite, cumulativeMax, positivityBySiteRows, siteSeries, t]);
   const villages = useMemo(
     () => enrollmentByVillage(enrollees, testType, villageNames),
     [enrollees, testType, villageNames],
@@ -428,6 +444,29 @@ export function OverviewSection({
                     </button>
                   ))}
                 </div>
+                {siteMetric === "cumulative" && (
+                  <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
+                    {(["enrolled", "cases", "controls"] as const).map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setCumulativeMetric(m)}
+                        className={`px-3 py-1.5 whitespace-nowrap ${
+                          cumulativeMetric === m
+                            ? "bg-[var(--primary)] text-[var(--primary-fg)]"
+                            : "hover:bg-[var(--surface-2)]"
+                        }`}
+                      >
+                        {t(
+                          m === "enrolled"
+                            ? "charts.enrolledSeries"
+                            : m === "cases"
+                              ? "charts.casesSeries"
+                              : "charts.controlsSeries",
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
                   {(["grid", "line", "stacked"] as const)
                     // Stacking can't represent cumulative totals or percentages.
@@ -528,7 +567,7 @@ export function OverviewSection({
                           week: r.week as string,
                           [site.name]: (r[site.name] as number | null) ?? null,
                         };
-                        if (siteMetric === "cumulative") {
+                        if (siteMetric === "cumulative" && cumulativeMetric === "enrolled") {
                           cell.TargetLow = r.TargetLow as number;
                           cell.TargetHigh = r.TargetHigh as number;
                         }
@@ -538,7 +577,7 @@ export function OverviewSection({
                   const cellSeries = siteMetricView
                     ? [
                         { key: site.name, color: cycleColor(0) },
-                        ...(siteMetric === "cumulative"
+                        ...(siteMetric === "cumulative" && cumulativeMetric === "enrolled"
                           ? [
                               { key: "TargetLow", color: PALETTE.green, dashed: true },
                               { key: "TargetHigh", color: PALETTE.orange, dashed: true },
@@ -592,7 +631,7 @@ export function OverviewSection({
                 })}
               </div>
               {siteMetric === "all" && <ChartLegend series={stackSeries} />}
-              {siteMetric === "cumulative" && (
+              {siteMetric === "cumulative" && cumulativeMetric === "enrolled" && (
                 <ChartLegend
                   series={[
                     { key: "TargetLow", name: t("charts.targetSiteLow"), color: PALETTE.green },

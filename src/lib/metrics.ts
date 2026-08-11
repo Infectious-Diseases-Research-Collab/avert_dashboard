@@ -419,6 +419,13 @@ export interface PositivityPoint {
  * no enrollees yield null rather than 0 so the line breaks instead of dropping
  * to the axis, which would read as "positivity was zero that day".
  */
+/**
+ * Cumulative (running cases / running enrolled) rather than per-bucket, since
+ * a single day's ratio is extremely noisy at these sample sizes — one extra
+ * or missing case swings a daily/site bucket by tens of points. The running
+ * total settles into an actual trend instead of bouncing between 0% and 100%.
+ * Null only for buckets before any enrollment has happened yet.
+ */
 export function positivityTrends(
   screened: Enrollee[],
   testType: TestType,
@@ -440,24 +447,39 @@ export function positivityTrends(
     if (r === 1) row.cases += 1;
   }
 
+  let runN = 0;
+  let runCases = 0;
   return buckets.map((b) => {
     const row = per.get(b)!;
+    runN += row.n;
+    runCases += row.cases;
     return {
       week: b,
-      Positivity: row.n ? Math.round((row.cases / row.n) * 1000) / 10 : null,
+      Positivity: runN ? Math.round((runCases / runN) * 1000) / 10 : null,
     };
   });
 }
 
-/** Per-site positivity rows, derived from an existing enrollmentTrendsBySite result. */
+/**
+ * Per-site cumulative positivity, derived from an existing
+ * enrollmentTrendsBySite result. Same running-total rationale as
+ * positivityTrends — a single site's single-day ratio is close to
+ * meaningless at typical daily counts of 0-2.
+ */
 export function positivityBySite(trends: TrendsBySite): Record<string, number | string | null>[] {
   const casesByWeek = new Map(trends.cases.map((r) => [String(r.week), r]));
+  const runN = new Map<string, number>();
+  const runCases = new Map<string, number>();
   return trends.enrolled.map((row) => {
     const out: Record<string, number | string | null> = { week: String(row.week) };
     for (const s of trends.sites) {
       const n = (row[s.name] as number) || 0;
       const c = (casesByWeek.get(String(row.week))?.[s.name] as number) || 0;
-      out[s.name] = n ? Math.round((c / n) * 1000) / 10 : null;
+      const newN = (runN.get(s.name) ?? 0) + n;
+      const newCases = (runCases.get(s.name) ?? 0) + c;
+      runN.set(s.name, newN);
+      runCases.set(s.name, newCases);
+      out[s.name] = newN ? Math.round((newCases / newN) * 1000) / 10 : null;
     }
     return out;
   });
