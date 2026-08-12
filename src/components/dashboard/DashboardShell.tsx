@@ -139,6 +139,7 @@ export function DashboardShell({
     auditLog: filteredAuditLog,
     downloadQuery,
     siteSelected: mrc !== "all",
+    selectedMrc: mrc === "all" ? null : mrc,
   };
 
   const navItems: SectionKey[] = [

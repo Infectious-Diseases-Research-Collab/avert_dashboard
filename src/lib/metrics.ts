@@ -307,10 +307,13 @@ export function enrollmentTrendsBySite(
 // Cumulative trends, enrollment targets, and test positivity
 // ---------------------------------------------------------------------------
 
-/** Study-wide daily enrollment targets (Burkina Faso). */
-export const DAILY_TARGETS = { low: 46, high: 65 } as const;
-/** Per-site daily enrollment targets. 12 sites x 4 = 48 ~ 46; x 5.5 = 66 ~ 65. */
-export const SITE_DAILY_TARGETS = { low: 4, high: 5.5 } as const;
+/**
+ * Study-wide daily enrollment targets (Burkina Faso): 16.4/day reaches 3500
+ * enrolled and 23.4/day reaches 5000 over the same ~213-day enrollment period.
+ */
+export const DAILY_TARGETS = { low: 16.4, high: 23.4 } as const;
+/** Per-site daily enrollment targets. 12 sites x 1.4 ~ 16.4; x 1.9 ~ 23.4. */
+export const SITE_DAILY_TARGETS = { low: 1.4, high: 1.9 } as const;
 
 /** Earliest enrollment day present in the data — day 1 of the study. */
 export function studyStartKey(screened: Enrollee[]): string | null {
@@ -519,10 +522,10 @@ export interface SiteProgress {
 }
 
 /**
- * Cumulative CASES per site measured against a per-site daily case target,
- * for the map — per the study team: "colored by how far or close the current
+ * Cumulative CASES per site measured against the per-site daily target, for
+ * the map — per the study team: "colored by how far or close the current
  * cumulative enrollment (of cases) is to the target ... assuming we want to
- * enroll 4 cases per day per site." Only facilities with coordinates are
+ * enroll [1.4] cases per day per site." Only facilities with coordinates are
  * returned.
  */
 export function siteProgress(
@@ -830,13 +833,20 @@ export interface CoverageByAgeBin {
   n: number;        // enrolled participants in this age bin
   covered: number;  // of those, how many received >= 1 dose
   pct: number;      // covered / n, as a percentage
+  // Share of the bin at each dose count, as percentages. Stacked, these sum to
+  // `pct` — the zero-dose remainder is deliberately left off the chart, so the
+  // height of each bar still reads as "coverage", now split by dose count.
+  d1: number;
+  d2: number;
+  d3: number;
+  d4: number;
 }
 
 /**
- * Vaccine coverage (share with at least one dose) by age at enrollment,
- * bucketed into fixed-width age bins. Bins with no participants are omitted
- * rather than plotted as 0% — an empty bin has no coverage to report, and
- * drawing it as zero would read as "nobody here was vaccinated".
+ * Vaccine coverage by age at enrollment, bucketed into fixed-width age bins and
+ * broken down by number of doses received. Bins with no participants are
+ * omitted rather than plotted as 0% — an empty bin has no coverage to report,
+ * and drawing it as zero would read as "nobody here was vaccinated".
  */
 export function coverageByAge(screened: Enrollee[], binWidth = 2): CoverageByAgeBin[] {
   const enrolled = screened
@@ -844,28 +854,39 @@ export function coverageByAge(screened: Enrollee[], binWidth = 2): CoverageByAge
     .filter((e) => e.agemonths_calculated != null);
   if (enrolled.length === 0) return [];
 
-  const bins = new Map<number, { n: number; covered: number }>();
+  const bins = new Map<number, { n: number; doses: number[] }>();
   for (const e of enrolled) {
     const x = Math.floor((e.agemonths_calculated as number) / binWidth) * binWidth;
     let b = bins.get(x);
     if (!b) {
-      b = { n: 0, covered: 0 };
+      b = { n: 0, doses: [0, 0, 0, 0, 0] };
       bins.set(x, b);
     }
     b.n += 1;
-    if ((e.vx_doses_received ?? 0) >= 1) b.covered += 1;
+    // Anything above 4 is clamped into the top bucket rather than dropped.
+    const d = Math.min(4, Math.max(0, e.vx_doses_received ?? 0));
+    b.doses[d] += 1;
   }
+
+  // Rounded so tooltips read "71.4", not "71.42857142857143".
+  const share = (count: number, n: number) => Math.round((count / n) * 1000) / 10;
 
   return [...bins.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([x, b]) => ({
-      x,
-      label: binWidth === 1 ? `${x}` : `${x}–${x + binWidth - 1}`,
-      n: b.n,
-      covered: b.covered,
-      // Rounded so the chart tooltip reads "71.4", not "71.42857142857143".
-      pct: Math.round((b.covered / b.n) * 1000) / 10,
-    }));
+    .map(([x, b]) => {
+      const covered = b.n - b.doses[0];
+      return {
+        x,
+        label: binWidth === 1 ? `${x}` : `${x}–${x + binWidth - 1}`,
+        n: b.n,
+        covered,
+        pct: share(covered, b.n),
+        d1: share(b.doses[1], b.n),
+        d2: share(b.doses[2], b.n),
+        d3: share(b.doses[3], b.n),
+        d4: share(b.doses[4], b.n),
+      };
+    });
 }
 
 export function ageAtVaccination(screened: Enrollee[]): HistBin[] {

@@ -12,6 +12,15 @@ const SiteMapLeaflet = dynamic(() => import("./SiteMapLeaflet").then((m) => m.Si
   loading: () => <div className="rounded-lg bg-[var(--surface-2)] animate-pulse" style={{ height: 320 }} />,
 });
 
-export function SiteMap({ sites, height }: { sites: SiteProgress[]; height?: number }) {
-  return <SiteMapLeaflet sites={sites} height={height} />;
+export function SiteMap({
+  sites,
+  height,
+  highlightMrc,
+}: {
+  sites: SiteProgress[];
+  height?: number;
+  /** When set, only this site is coloured; the rest are greyed out. */
+  highlightMrc?: string | null;
+}) {
+  return <SiteMapLeaflet sites={sites} height={height} highlightMrc={highlightMrc} />;
 }

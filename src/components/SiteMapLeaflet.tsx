@@ -12,6 +12,8 @@ import type { SiteProgress } from "@/lib/metrics";
 const BEHIND = "#d1495b";
 const NEAR = "#d99a00";
 const ON_TRACK = "#2f9e6f";
+/** Sites outside the current facility filter — plotted for context only. */
+const MUTED = "#9aa3ad";
 
 function paceColor(ratio: number): string {
   if (ratio >= 0.9) return ON_TRACK;
@@ -25,7 +27,16 @@ function paceColor(ratio: number): string {
  * the target-to-date. Loaded only on the client (see SiteMap.tsx) — Leaflet
  * touches `window` at import time and can't run during SSR.
  */
-export function SiteMapLeaflet({ sites, height = 320 }: { sites: SiteProgress[]; height?: number }) {
+export function SiteMapLeaflet({
+  sites,
+  height = 320,
+  highlightMrc,
+}: {
+  sites: SiteProgress[];
+  height?: number;
+  /** When set, only this site is coloured; the rest are greyed out. */
+  highlightMrc?: string | null;
+}) {
   const t = useTranslations();
 
   const bounds: LatLngBoundsExpression | null = useMemo(() => {
@@ -50,25 +61,35 @@ export function SiteMapLeaflet({ sites, height = 320 }: { sites: SiteProgress[];
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
-          {sites.map((s) => (
-            <CircleMarker
-              key={s.mrc}
-              center={[s.latitude, s.longitude]}
-              radius={8}
-              pathOptions={{
-                color: "var(--surface)",
-                weight: 2,
-                fillColor: paceColor(s.ratio),
-                fillOpacity: 0.9,
-              }}
-            >
-              <Tooltip direction="top" offset={[0, -8]}>
-                <span className="font-medium">{s.name}</span>
-                <br />
-                {s.cases} / {Math.round(s.target)} ({Math.round(s.ratio * 100)}%)
-              </Tooltip>
-            </CircleMarker>
-          ))}
+          {sites.map((s) => {
+            // With a site selected, only its own counts are in view — the other
+            // markers stay on the map for geographic context but are greyed
+            // out, since their progress isn't being measured here.
+            const dimmed = !!highlightMrc && s.mrc !== highlightMrc;
+            return (
+              <CircleMarker
+                key={s.mrc}
+                center={[s.latitude, s.longitude]}
+                radius={dimmed ? 6 : 8}
+                pathOptions={{
+                  color: "var(--surface)",
+                  weight: 2,
+                  fillColor: dimmed ? MUTED : paceColor(s.ratio),
+                  fillOpacity: dimmed ? 0.4 : 0.9,
+                }}
+              >
+                <Tooltip direction="top" offset={[0, -8]}>
+                  <span className="font-medium">{s.name}</span>
+                  {!dimmed && (
+                    <>
+                      <br />
+                      {s.cases} / {Math.round(s.target)} ({Math.round(s.ratio * 100)}%)
+                    </>
+                  )}
+                </Tooltip>
+              </CircleMarker>
+            );
+          })}
         </MapContainer>
       </div>
 
