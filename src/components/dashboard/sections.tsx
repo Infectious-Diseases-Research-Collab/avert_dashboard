@@ -347,8 +347,9 @@ export function OverviewSection({
                 { key: "RDT-", name: t("charts.rdtNegative"), color: PALETTE.neg },
                 ...(hasMicro
                   ? [
+                      // Not PALETTE.orange — that's TargetHigh on this same chart.
                       { key: "Micro+", name: t("charts.microPositive"), color: PALETTE.purple },
-                      { key: "Micro-", name: t("charts.microNegative"), color: PALETTE.orange },
+                      { key: "Micro-", name: t("charts.microNegative"), color: PALETTE.brown },
                     ]
                   : []),
                 { key: "TargetLow", name: targetLowName, color: PALETTE.green, dashed: true },

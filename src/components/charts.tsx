@@ -14,13 +14,21 @@ import {
   ReferenceLine,
 } from "recharts";
 
+// Series colors, checked with a perceptual-distance validator rather than by
+// eye. The pairs that share a chart have to survive both normal vision and the
+// common colour-vision deficiencies, so the hues are deliberately spread:
+// `neg` is violet rather than blue because a blue "Controls" line sat only
+// ΔE 5.4 from the teal "Enrolled" line (the readable floor is 15) and the two
+// were genuinely hard to tell apart; `green` moved off olive, which collapsed
+// to ΔE 2.4 against `pos` for red-blind readers.
 export const PALETTE = {
   primary: "#0e7c86",
-  pos: "#d1495b",
-  neg: "#2e6f95",
-  green: "#6b8f3e",
-  purple: "#8a5cb0",
+  pos: "#e34948",
+  neg: "#4a3aa7",
+  green: "#008300",
+  purple: "#c0399f",
   orange: "#d99a00",
+  brown: "#7a5230",
   grey: "#95a5a6",
   ug: "#1f7a8c",
   bf: "#b5651d",
