@@ -139,6 +139,81 @@ create table if not exists public.blood_smear (
 );
 create index if not exists blood_smear_country_idx on public.blood_smear (country);
 
+-- =====================================================================
+-- Auth helpers
+-- =====================================================================
+-- Moved here, right after allowed_users (the one table these depend on),
+-- because data_quality_status_audit's RLS policy below calls auth_can_see()
+-- — a forward reference to a function that didn't exist yet on a fresh
+-- database. A live Supabase project never hit this (auth_can_see already
+-- existed from an earlier deploy), but loading this file top-to-bottom into
+-- an empty database failed here until schema.sql was run a second time.
+
+-- Email of the currently authenticated user (from the JWT).
+create or replace function public.auth_email()
+returns text
+language sql
+stable
+as $$
+  select lower(coalesce(auth.jwt() ->> 'email', ''));
+$$;
+
+-- Country scope of the current user: 'UG' | 'BF' | 'BOTH' | '' (none).
+create or replace function public.auth_country_access()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select country_access from public.allowed_users where lower(email) = public.auth_email()),
+    ''
+  );
+$$;
+
+create or replace function public.auth_is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select is_admin from public.allowed_users where lower(email) = public.auth_email()),
+    false
+  );
+$$;
+
+-- True if the current user may see rows for the given country.
+create or replace function public.auth_can_see(row_country text)
+returns boolean
+language sql
+stable
+as $$
+  select public.auth_country_access() = 'BOTH'
+      or public.auth_country_access() = row_country;
+$$;
+
+-- Look up an email's default UI language, callable by anyone (including
+-- signed-out visitors on the login page) so the sign-up confirmation message
+-- can render in the right language before the account is even confirmed.
+-- Deliberately narrow: returns only default_locale, never country_access,
+-- is_admin, or full_name. It does confirm/deny whether an email is on the
+-- allowlist (returns null vs. a locale) — an acceptable trade-off for this
+-- small, private study allowlist; do not widen this function's return shape.
+create or replace function public.lookup_default_locale(p_email text)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select default_locale from public.allowed_users where lower(email) = lower(p_email);
+$$;
+
+grant execute on function public.lookup_default_locale(text) to anon, authenticated;
+
 -- ---------------------------------------------------------------------
 -- Data-quality issue log
 -- ---------------------------------------------------------------------
@@ -233,75 +308,6 @@ drop policy if exists dq_audit_select on public.data_quality_status_audit;
 create policy dq_audit_select on public.data_quality_status_audit
   for select to authenticated using (public.auth_can_see(country));
 
--- =====================================================================
--- Auth helpers
--- =====================================================================
-
--- Email of the currently authenticated user (from the JWT).
-create or replace function public.auth_email()
-returns text
-language sql
-stable
-as $$
-  select lower(coalesce(auth.jwt() ->> 'email', ''));
-$$;
-
--- Country scope of the current user: 'UG' | 'BF' | 'BOTH' | '' (none).
-create or replace function public.auth_country_access()
-returns text
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select coalesce(
-    (select country_access from public.allowed_users where lower(email) = public.auth_email()),
-    ''
-  );
-$$;
-
-create or replace function public.auth_is_admin()
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select coalesce(
-    (select is_admin from public.allowed_users where lower(email) = public.auth_email()),
-    false
-  );
-$$;
-
--- True if the current user may see rows for the given country.
-create or replace function public.auth_can_see(row_country text)
-returns boolean
-language sql
-stable
-as $$
-  select public.auth_country_access() = 'BOTH'
-      or public.auth_country_access() = row_country;
-$$;
-
--- Look up an email's default UI language, callable by anyone (including
--- signed-out visitors on the login page) so the sign-up confirmation message
--- can render in the right language before the account is even confirmed.
--- Deliberately narrow: returns only default_locale, never country_access,
--- is_admin, or full_name. It does confirm/deny whether an email is on the
--- allowlist (returns null vs. a locale) — an acceptable trade-off for this
--- small, private study allowlist; do not widen this function's return shape.
-create or replace function public.lookup_default_locale(p_email text)
-returns text
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select default_locale from public.allowed_users where lower(email) = lower(p_email);
-$$;
-
-grant execute on function public.lookup_default_locale(text) to anon, authenticated;
-
 -- Return the signed-in caller's own allowlist profile, matched case-
 -- insensitively (allowed_users.email may be stored with mixed case, e.g.
 -- 'Isabel.Rodriguez@ucsf.edu'). No email argument — always the caller's own
@@ -384,6 +390,52 @@ end;
 $$;
 
 grant execute on function public.set_issue_status(bigint, text) to authenticated;
+
+-- =====================================================================
+-- Dashboard access log
+-- =====================================================================
+
+-- Who opened the dashboard and which tab they viewed, for study-team usage
+-- visibility. 'page_view' fires once per dashboard load; 'section_view' fires
+-- on each tab switch (filter/date changes are not logged). Admin-only select —
+-- this is staff usage data, not participant data, so it doesn't follow the
+-- country-scoped auth_can_see() pattern used elsewhere. No UI reads this
+-- table; query it directly in the Supabase SQL editor.
+create table if not exists public.access_log (
+  id          bigint generated always as identity primary key,
+  actor       text not null,
+  event       text not null check (event in ('page_view','section_view')),
+  section     text,
+  occurred_at timestamptz not null default now()
+);
+create index if not exists access_log_actor_idx on public.access_log (actor);
+create index if not exists access_log_occurred_idx on public.access_log (occurred_at desc);
+
+alter table public.access_log enable row level security;
+
+drop policy if exists access_log_select on public.access_log;
+create policy access_log_select on public.access_log
+  for select to authenticated using (public.auth_is_admin());
+
+-- Sole write path, same shape as set_issue_status: security definer so the
+-- actor always comes from the caller's own JWT, never a client-supplied value.
+create or replace function public.log_access_event(p_event text, p_section text default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_event not in ('page_view','section_view') then
+    raise exception 'Invalid event %, expected page_view or section_view', p_event
+      using errcode = 'check_violation';
+  end if;
+  insert into public.access_log (actor, event, section)
+  values (public.auth_email(), p_event, p_section);
+end;
+$$;
+
+grant execute on function public.log_access_event(text, text) to authenticated;
 
 -- =====================================================================
 -- Vaccine-coverage verification waivers
@@ -650,5 +702,6 @@ grant select on
   public.allowed_users, public.facilities, public.enrollee,
   public.vaccination_status, public.audittrail, public.blood_smear,
   public.data_quality_issues, public.villages,
-  public.pipeline_runs, public.deployed_barcodes, public.data_quality_status_audit
+  public.pipeline_runs, public.deployed_barcodes, public.data_quality_status_audit,
+  public.access_log
 to authenticated;

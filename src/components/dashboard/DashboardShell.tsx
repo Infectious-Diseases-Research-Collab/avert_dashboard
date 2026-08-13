@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { createClient } from "@/lib/supabase/client";
 import {
   OverviewSection,
   VaccineCoverageSection,
@@ -71,6 +72,7 @@ export function DashboardShell({
 }) {
   const t = useTranslations();
   const canSwitchCountry = profile.country_access === "BOTH";
+  const supabase = useMemo(() => createClient(), []);
 
   const [section, setSection] = useState<SectionKey>("overview");
   const [country, setCountry] = useState<Country | "ALL">(
@@ -187,7 +189,19 @@ export function DashboardShell({
           {navItems.map((key) => (
             <button
               key={key}
-              onClick={() => setSection(key)}
+              onClick={() => {
+                // Usage logging (see supabase/schema.sql `access_log`) — fire
+                // and forget, must never block or break tab navigation.
+                if (key !== section) {
+                  void supabase
+                    .rpc("log_access_event", { p_event: "section_view", p_section: key })
+                    .then(
+                      () => {},
+                      () => {},
+                    );
+                }
+                setSection(key);
+              }}
               className={`px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
                 section === key
                   ? "border-[var(--primary)] text-[var(--primary)]"

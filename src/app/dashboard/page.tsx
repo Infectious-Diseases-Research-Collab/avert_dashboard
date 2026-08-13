@@ -88,6 +88,9 @@ export default async function DashboardPage() {
         .order("finished_at", { ascending: false })
         .limit(1),
       fetchVillages(supabase, visibleCountries(profile)),
+      // Usage logging (see supabase/schema.sql `access_log`) — best-effort, not
+      // read anywhere in the app, so its result is intentionally discarded.
+      supabase.rpc("log_access_event", { p_event: "page_view" }),
     ]);
 
   const facilities = (facilitiesRes.data ?? []) as Facility[];
