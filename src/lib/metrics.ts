@@ -44,13 +44,21 @@ export type TrendGranularity = "day" | "week";
  * on the actual span of the data (not the from/to filter window) so it also
  * adapts correctly when a user manually narrows the date filter.
  */
+/**
+ * Above this span, daily buckets over the whole visible range would be too
+ * many points to read as a trend line; switch to weekly. Below it, users can
+ * still narrow the date-range filter to any recent window to force daily
+ * view back on for that window — no separate toggle needed.
+ */
+const DAILY_VIEW_MAX_SPAN_DAYS = 56;
+
 export function pickTrendGranularity(screened: Enrollee[]): TrendGranularity {
   const dates = screened.map((e) => parseDate(e.startdate)).filter((d): d is Date => d !== null);
   if (dates.length === 0) return "week";
   const min = Math.min(...dates.map((d) => d.getTime()));
   const max = Math.max(...dates.map((d) => d.getTime()));
   const spanDays = (max - min) / MS_DAY;
-  return spanDays <= 28 ? "day" : "week";
+  return spanDays <= DAILY_VIEW_MAX_SPAN_DAYS ? "day" : "week";
 }
 
 /** Every bucket key (day or week start) spanned by the given dates, in order. */
