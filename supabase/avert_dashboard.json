@@ -3,6 +3,41 @@
     "project_schema": {
       "tables": [
         {
+          "table_name": "access_log",
+          "columns": [
+            {
+              "column": "id",
+              "type": "bigint",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "column": "actor",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "column": "event",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "column": "section",
+              "type": "text",
+              "nullable": true,
+              "default": null
+            },
+            {
+              "column": "occurred_at",
+              "type": "timestamp with time zone",
+              "nullable": false,
+              "default": "now()"
+            }
+          ]
+        },
+        {
           "table_name": "allowed_users",
           "columns": [
             {
@@ -916,6 +951,16 @@
       ],
       "rls": [
         {
+          "table": "access_log",
+          "policy": "access_log_select",
+          "command": "SELECT",
+          "roles": [
+            "authenticated"
+          ],
+          "using_expr": "auth_is_admin()",
+          "with_check": null
+        },
+        {
           "table": "allowed_users",
           "policy": "allowed_users_select",
           "command": "SELECT",
@@ -1048,6 +1093,11 @@
       ],
       "rls_status": [
         {
+          "table": "access_log",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
           "table": "allowed_users",
           "rls_enabled": true,
           "rls_forced": false
@@ -1114,6 +1164,132 @@
         }
       ],
       "table_privileges": [
+        {
+          "table": "access_log",
+          "grantee": "anon",
+          "privilege": "DELETE",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "anon",
+          "privilege": "INSERT",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "anon",
+          "privilege": "REFERENCES",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "anon",
+          "privilege": "SELECT",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "anon",
+          "privilege": "TRIGGER",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "anon",
+          "privilege": "TRUNCATE",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "anon",
+          "privilege": "UPDATE",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "authenticated",
+          "privilege": "DELETE",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "authenticated",
+          "privilege": "INSERT",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "authenticated",
+          "privilege": "REFERENCES",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "authenticated",
+          "privilege": "SELECT",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "authenticated",
+          "privilege": "TRIGGER",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "authenticated",
+          "privilege": "TRUNCATE",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "authenticated",
+          "privilege": "UPDATE",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "service_role",
+          "privilege": "DELETE",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "service_role",
+          "privilege": "INSERT",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "service_role",
+          "privilege": "REFERENCES",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "service_role",
+          "privilege": "SELECT",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "service_role",
+          "privilege": "TRIGGER",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "service_role",
+          "privilege": "TRUNCATE",
+          "is_grantable": false
+        },
+        {
+          "table": "access_log",
+          "grantee": "service_role",
+          "privilege": "UPDATE",
+          "is_grantable": false
+        },
         {
           "table": "allowed_users",
           "grantee": "anon",
@@ -2755,6 +2931,69 @@
       ],
       "data_api_grants_summary": [
         {
+          "table": "access_log",
+          "exposed_to_anon": true,
+          "exposed_to_authenticated": true,
+          "grants": [
+            {
+              "grantee": "anon",
+              "privilege": "DELETE"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "INSERT"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "REFERENCES"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "SELECT"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "TRIGGER"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "TRUNCATE"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "UPDATE"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "DELETE"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "INSERT"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "REFERENCES"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "SELECT"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "TRIGGER"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "TRUNCATE"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "UPDATE"
+            }
+          ]
+        },
+        {
           "table": "allowed_users",
           "exposed_to_anon": true,
           "exposed_to_authenticated": true,
@@ -3723,6 +3962,13 @@
           "definition": "CREATE OR REPLACE FUNCTION public.gtrgm_union(internal, internal)\n RETURNS gtrgm\n LANGUAGE c\n IMMUTABLE PARALLEL SAFE STRICT\nAS '$libdir/pg_trgm', $function$gtrgm_union$function$\n"
         },
         {
+          "name": "log_access_event",
+          "args": "p_event text, p_section text DEFAULT NULL::text",
+          "returns": "void",
+          "security_definer": true,
+          "definition": "CREATE OR REPLACE FUNCTION public.log_access_event(p_event text, p_section text DEFAULT NULL::text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nbegin\n  if p_event not in ('page_view','section_view') then\n    raise exception 'Invalid event %, expected page_view or section_view', p_event\n      using errcode = 'check_violation';\n  end if;\n  insert into public.access_log (actor, event, section)\n  values (public.auth_email(), p_event, p_section);\nend;\n$function$\n"
+        },
+        {
           "name": "lookup_default_locale",
           "args": "p_email text",
           "returns": "text",
@@ -4250,6 +4496,24 @@
           "is_grantable": false
         },
         {
+          "routine": "log_access_event",
+          "grantee": "anon",
+          "privilege": "EXECUTE",
+          "is_grantable": false
+        },
+        {
+          "routine": "log_access_event",
+          "grantee": "authenticated",
+          "privilege": "EXECUTE",
+          "is_grantable": false
+        },
+        {
+          "routine": "log_access_event",
+          "grantee": "service_role",
+          "privilege": "EXECUTE",
+          "is_grantable": false
+        },
+        {
           "routine": "lookup_default_locale",
           "grantee": "anon",
           "privilege": "EXECUTE",
@@ -4645,6 +4909,21 @@
         }
       ],
       "indexes": [
+        {
+          "table": "access_log",
+          "index": "access_log_actor_idx",
+          "definition": "CREATE INDEX access_log_actor_idx ON public.access_log USING btree (actor)"
+        },
+        {
+          "table": "access_log",
+          "index": "access_log_occurred_idx",
+          "definition": "CREATE INDEX access_log_occurred_idx ON public.access_log USING btree (occurred_at DESC)"
+        },
+        {
+          "table": "access_log",
+          "index": "access_log_pkey",
+          "definition": "CREATE UNIQUE INDEX access_log_pkey ON public.access_log USING btree (id)"
+        },
         {
           "table": "allowed_users",
           "index": "allowed_users_pkey",
