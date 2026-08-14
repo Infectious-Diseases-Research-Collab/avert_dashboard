@@ -757,7 +757,7 @@ export function VaccineCoverageSection({ enrollees }: SectionProps) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           label={t("kpi.withCard")}
-          value={fmtPct(kpis.cardPct, 0)}
+          value={fmtPct(kpis.cardPct)}
           sub={`${kpis.cardCount}/${kpis.enrolled}`}
           accent={PALETTE.primary}
         />
