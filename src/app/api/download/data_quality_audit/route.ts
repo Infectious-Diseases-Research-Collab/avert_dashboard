@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { toCsv, csvResponse } from "@/lib/csv";
+import { fetchAllRows } from "@/lib/supabase/paginate";
+import type { DataQualityAuditEntry } from "@/lib/types";
 
 /**
  * Export the full dismiss/reopen audit history for data-quality issues.
@@ -15,22 +17,29 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const country = searchParams.get("country");
 
-  let query = supabase
-    .from("data_quality_status_audit")
-    .select("*")
-    .order("acted_at", { ascending: false })
-    .limit(100000);
-  if (country) query = query.eq("country", country);
+  // PostgREST caps every response at this project's ~1,000-row "Max Rows"
+  // setting regardless of `.limit()`, so the export has to be paged through
+  // with fetchAllRows (see the same fix in src/app/dashboard/page.tsx).
+  let auditLog: DataQualityAuditEntry[];
+  let facRows: { mrc: string; name: string }[];
+  try {
+    [auditLog, facRows] = await Promise.all([
+      fetchAllRows<DataQualityAuditEntry>((from, to) => {
+        let q = supabase.from("data_quality_status_audit").select("*").order("acted_at", { ascending: false });
+        if (country) q = q.eq("country", country);
+        return q.range(from, to);
+      }),
+      fetchAllRows<{ mrc: string; name: string }>((from, to) =>
+        supabase.from("facilities").select("mrc,name").range(from, to),
+      ),
+    ]);
+  } catch (error) {
+    return new Response(error instanceof Error ? error.message : "Query failed", { status: 500 });
+  }
 
-  const [auditRes, facRes] = await Promise.all([
-    query,
-    supabase.from("facilities").select("mrc,name"),
-  ]);
-  if (auditRes.error) return new Response(auditRes.error.message, { status: 500 });
+  const facName = new Map(facRows.map((f) => [f.mrc, f.name]));
 
-  const facName = new Map((facRes.data ?? []).map((f) => [f.mrc as string, f.name as string]));
-
-  const rows = (auditRes.data ?? []).map((r) => ({
+  const rows = auditLog.map((r) => ({
     action: r.action,
     actor: r.actor,
     acted_at: r.acted_at,

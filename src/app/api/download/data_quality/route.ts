@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { LOCALE_COOKIE } from "@/i18n/request";
 import { toCsv, csvResponse } from "@/lib/csv";
+import { fetchAllRows } from "@/lib/supabase/paginate";
+import type { DataQualityIssue } from "@/lib/types";
 
 /**
  * Export the data-quality issues as CSV, with the human-readable "Error reason"
@@ -23,24 +25,31 @@ export async function GET(request: Request) {
   const cookieStore = await cookies();
   const fr = cookieStore.get(LOCALE_COOKIE)?.value === "fr";
 
-  let query = supabase
-    .from("data_quality_issues")
-    .select("*")
-    .order("detected_at", { ascending: false })
-    .limit(100000);
-  if (country) query = query.eq("country", country);
-  if (status !== "all") query = query.eq("status", status);
+  // PostgREST caps every response at this project's ~1,000-row "Max Rows"
+  // setting regardless of `.limit()`, so the export has to be paged through
+  // with fetchAllRows (see the same fix in src/app/dashboard/page.tsx).
+  let issues: DataQualityIssue[];
+  let facRows: { mrc: string; name: string }[];
+  try {
+    [issues, facRows] = await Promise.all([
+      fetchAllRows<DataQualityIssue>((from, to) => {
+        let q = supabase.from("data_quality_issues").select("*").order("detected_at", { ascending: false });
+        if (country) q = q.eq("country", country);
+        if (status !== "all") q = q.eq("status", status);
+        return q.range(from, to);
+      }),
+      fetchAllRows<{ mrc: string; name: string }>((from, to) =>
+        supabase.from("facilities").select("mrc,name").range(from, to),
+      ),
+    ]);
+  } catch (error) {
+    return new Response(error instanceof Error ? error.message : "Query failed", { status: 500 });
+  }
 
-  const [issuesRes, facRes] = await Promise.all([
-    query,
-    supabase.from("facilities").select("mrc,name"),
-  ]);
-  if (issuesRes.error) return new Response(issuesRes.error.message, { status: 500 });
-
-  const facName = new Map((facRes.data ?? []).map((f) => [f.mrc as string, f.name as string]));
+  const facName = new Map(facRows.map((f) => [f.mrc, f.name]));
 
   // "Error reason" is inserted first so toCsv (column order = first-seen key) puts it first.
-  const rows = (issuesRes.data ?? []).map((r) => ({
+  const rows = issues.map((r) => ({
     "Error reason": fr ? r.description_fr : r.description,
     check_code: r.check_code,
     severity: r.severity,

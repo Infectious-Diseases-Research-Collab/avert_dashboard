@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { toCsv, csvResponse } from "@/lib/csv";
+import { fetchAllRows } from "@/lib/supabase/paginate";
 
 /**
  * Deployed-vs-used barcode comparison CSV: one row per barcode, flagging
@@ -17,26 +18,36 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const country = searchParams.get("country");
 
-  let deployedQ = supabase.from("deployed_barcodes").select("barcode,country").limit(100000);
-  let usedQ = supabase
-    .from("enrollee")
-    .select("barcode,country,subjid,mrc")
-    .not("barcode", "is", null)
-    .limit(100000);
-  if (country) {
-    deployedQ = deployedQ.eq("country", country);
-    usedQ = usedQ.eq("country", country);
+  type DeployedRow = { barcode: string; country: string };
+  type UsedRow = { barcode: string | null; country: string; subjid: string | null; mrc: string | null };
+
+  // PostgREST caps every response at this project's ~1,000-row "Max Rows"
+  // setting regardless of `.limit()`, so both exports have to be paged
+  // through with fetchAllRows (see the same fix in src/app/dashboard/page.tsx).
+  let deployedRows: DeployedRow[];
+  let usedRows: UsedRow[];
+  let facRows: { mrc: string; name: string }[];
+  try {
+    [deployedRows, usedRows, facRows] = await Promise.all([
+      fetchAllRows<DeployedRow>((from, to) => {
+        let q = supabase.from("deployed_barcodes").select("barcode,country");
+        if (country) q = q.eq("country", country);
+        return q.range(from, to);
+      }),
+      fetchAllRows<UsedRow>((from, to) => {
+        let q = supabase.from("enrollee").select("barcode,country,subjid,mrc").not("barcode", "is", null);
+        if (country) q = q.eq("country", country);
+        return q.range(from, to);
+      }),
+      fetchAllRows<{ mrc: string; name: string }>((from, to) =>
+        supabase.from("facilities").select("mrc,name").range(from, to),
+      ),
+    ]);
+  } catch (error) {
+    return new Response(error instanceof Error ? error.message : "Query failed", { status: 500 });
   }
 
-  const [deployedRes, usedRes, facRes] = await Promise.all([
-    deployedQ,
-    usedQ,
-    supabase.from("facilities").select("mrc,name"),
-  ]);
-  if (deployedRes.error) return new Response(deployedRes.error.message, { status: 500 });
-  if (usedRes.error) return new Response(usedRes.error.message, { status: 500 });
-
-  const facName = new Map((facRes.data ?? []).map((f) => [f.mrc as string, f.name as string]));
+  const facName = new Map(facRows.map((f) => [f.mrc, f.name]));
 
   type Row = {
     barcode: string;
@@ -48,32 +59,32 @@ export async function GET(request: Request) {
   };
   const byBarcode = new Map<string, Row>();
 
-  for (const d of deployedRes.data ?? []) {
-    byBarcode.set(d.barcode as string, {
-      barcode: d.barcode as string,
-      country: d.country as string,
+  for (const d of deployedRows) {
+    byBarcode.set(d.barcode, {
+      barcode: d.barcode,
+      country: d.country,
       deployed: "Y",
       used: "N",
       subjid: "",
       facility: "",
     });
   }
-  for (const u of usedRes.data ?? []) {
-    const barcode = u.barcode as string;
+  for (const u of usedRows) {
+    const barcode = u.barcode;
     if (!barcode) continue;
-    const facility = u.mrc ? (facName.get(u.mrc as string) ?? (u.mrc as string)) : "";
+    const facility = u.mrc ? (facName.get(u.mrc) ?? u.mrc) : "";
     const existing = byBarcode.get(barcode);
     if (existing) {
       existing.used = "Y";
-      existing.subjid = (u.subjid as string) ?? "";
+      existing.subjid = u.subjid ?? "";
       existing.facility = facility;
     } else {
       byBarcode.set(barcode, {
         barcode,
-        country: u.country as string,
+        country: u.country,
         deployed: "N",
         used: "Y",
-        subjid: (u.subjid as string) ?? "",
+        subjid: u.subjid ?? "",
         facility,
       });
     }

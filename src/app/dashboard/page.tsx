@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getProfile, visibleCountries } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows, type PageResult } from "@/lib/supabase/paginate";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { villageGeoKey } from "@/lib/metrics";
 import type {
@@ -30,6 +31,13 @@ type VillageRow = {
   village: string;
 };
 
+type BloodSmearRow = {
+  barcode: string;
+  parasitedensity: number | null;
+  mic_positive: number | null;
+  slidequality: number | null;
+};
+
 /**
  * Fetch the full village lookup, paginated. The villages table has ~4,800 rows
  * and Supabase caps an unbounded query (~1,000 rows), which would silently drop
@@ -42,19 +50,13 @@ async function fetchVillages(
   countries: Country[],
 ): Promise<VillageRow[]> {
   const countryIds = countries.map((c) => (c === "UG" ? 1 : 2));
-  const pageSize = 1000;
-  const rows: VillageRow[] = [];
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
+  return fetchAllRows<VillageRow>((from, to) =>
+    supabase
       .from("villages")
       .select("countryid,districtid,subcountyid,parishid,villageid,village")
       .in("countryid", countryIds)
-      .range(from, from + pageSize - 1);
-    if (error || !data || data.length === 0) break;
-    rows.push(...(data as VillageRow[]));
-    if (data.length < pageSize) break;
-  }
-  return rows;
+      .range(from, to),
+  );
 }
 
 export default async function DashboardPage() {
@@ -65,23 +67,56 @@ export default async function DashboardPage() {
 
   const [
     facilitiesRes,
-    enrolleeRes,
-    bloodRes,
-    coverageRes,
-    issuesRes,
-    auditRes,
-    waiverRes,
+    enrollees,
+    bloodRows,
+    coverageBarcodes,
+    issues,
+    auditLog,
+    waivers,
     lastRunRes,
     villageRows,
   ] =
     await Promise.all([
       supabase.from("facilities").select("*"),
-      supabase.from("enrollee").select(ENROLLEE_COLS).limit(20000),
-      supabase.from("blood_smear").select("barcode,parasitedensity,mic_positive,slidequality"),
-      supabase.from("vaccination_status").select("barcode"),
-      supabase.from("data_quality_issues").select("*").order("detected_at", { ascending: false }),
-      supabase.from("data_quality_status_audit").select("*").order("acted_at", { ascending: false }),
-      supabase.from("verification_waivers").select("uniqueid,required"),
+      // PostgREST caps every response at this project's ~1,000-row "Max Rows"
+      // setting regardless of `.limit()` — enrollee already exceeds that, so
+      // it (and every other table that can grow past 1,000 rows) has to be
+      // paged through with fetchAllRows, same as fetchVillages above.
+      // The select string's raw->>field aliases defeat postgrest-js's column
+      // type inference (same reason the original single-shot query needed an
+      // `unknown` cast), so the builder is cast through `unknown` here too.
+      fetchAllRows<Enrollee>(
+        (from, to) =>
+          supabase.from("enrollee").select(ENROLLEE_COLS).range(from, to) as unknown as PromiseLike<
+            PageResult<Enrollee>
+          >,
+      ),
+      fetchAllRows<BloodSmearRow>((from, to) =>
+        supabase
+          .from("blood_smear")
+          .select("barcode,parasitedensity,mic_positive,slidequality")
+          .range(from, to),
+      ),
+      fetchAllRows<{ barcode: string }>((from, to) =>
+        supabase.from("vaccination_status").select("barcode").range(from, to),
+      ),
+      fetchAllRows<DataQualityIssue>((from, to) =>
+        supabase
+          .from("data_quality_issues")
+          .select("*")
+          .order("detected_at", { ascending: false })
+          .range(from, to),
+      ),
+      fetchAllRows<DataQualityAuditEntry>((from, to) =>
+        supabase
+          .from("data_quality_status_audit")
+          .select("*")
+          .order("acted_at", { ascending: false })
+          .range(from, to),
+      ),
+      fetchAllRows<VerificationWaiver>((from, to) =>
+        supabase.from("verification_waivers").select("uniqueid,required").range(from, to),
+      ),
       supabase
         .from("pipeline_runs")
         .select("finished_at")
@@ -94,9 +129,6 @@ export default async function DashboardPage() {
     ]);
 
   const facilities = (facilitiesRes.data ?? []) as Facility[];
-  const enrollees = (enrolleeRes.data ?? []) as unknown as Enrollee[];
-  const issues = (issuesRes.data ?? []) as DataQualityIssue[];
-  const auditLog = (auditRes.data ?? []) as DataQualityAuditEntry[];
   const lastDataPull = (lastRunRes.data?.[0]?.finished_at as string | undefined) ?? null;
 
   // Village-name lookup keyed by the canonical geo key. Passed to the client as
@@ -107,27 +139,21 @@ export default async function DashboardPage() {
   ]);
 
   // Attach microscopy fields from blood_smear (empty until blood_smear.csv is loaded).
-  const bloodByBarcode = new Map(
-    (bloodRes.data ?? []).map((b) => [b.barcode as string, b]),
-  );
+  const bloodByBarcode = new Map(bloodRows.map((b) => [b.barcode, b]));
   for (const e of enrollees) {
     const b = e.barcode ? bloodByBarcode.get(e.barcode) : undefined;
     if (b) {
-      e.mic_positive = b.mic_positive as number | null;
-      e.parasitedensity = b.parasitedensity as number | null;
-      e.slidequality = b.slidequality as number | null;
+      e.mic_positive = b.mic_positive;
+      e.parasitedensity = b.parasitedensity;
+      e.slidequality = b.slidequality;
     }
   }
 
-  const completedBarcodes = (coverageRes.data ?? [])
-    .map((r) => r.barcode as string)
-    .filter(Boolean);
+  const completedBarcodes = coverageBarcodes.map((r) => r.barcode).filter(Boolean);
 
   // Only required = false matters: turning a visit back on leaves the row
   // behind with required = true, which is the same as never having waived it.
-  const waivedVerification = ((waiverRes.data ?? []) as VerificationWaiver[])
-    .filter((w) => !w.required)
-    .map((w) => w.uniqueid);
+  const waivedVerification = waivers.filter((w) => !w.required).map((w) => w.uniqueid);
 
   return (
     <DashboardShell
