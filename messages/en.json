@@ -170,7 +170,10 @@
     "search": "Search subject ID, barcode, facility or reason",
     "noParticipants": "No participants match this filter.",
     "reasonLeftAtHome": "Left at home",
+    "reasonNotGiven": "Was not given a card",
+    "reasonMisplaced": "Card was misplaced/lost",
     "reasonOther": "Other (no detail given)",
+    "reasonOtherDetail": "Other - {detail}",
     "turnOff": "Not needed",
     "turnBackOn": "Mark as needed"
   },

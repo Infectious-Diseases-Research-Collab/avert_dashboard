@@ -170,7 +170,10 @@
     "search": "Rechercher un identifiant, code-barres, formation sanitaire ou motif",
     "noParticipants": "Aucun participant ne correspond à ce filtre.",
     "reasonLeftAtHome": "Laissée à la maison",
+    "reasonNotGiven": "N'a pas reçu de carte",
+    "reasonMisplaced": "La carte a été égarée/perdue",
     "reasonOther": "Autre (aucun détail fourni)",
+    "reasonOtherDetail": "Autre - {detail}",
     "turnOff": "Non nécessaire",
     "turnBackOn": "Marquer comme nécessaire"
   },

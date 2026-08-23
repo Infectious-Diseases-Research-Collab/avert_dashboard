@@ -155,14 +155,21 @@ export function ConcordanceTable({ c }: { c: Concordance }) {
 // Verification participants
 // ---------------------------------------------------------------------------
 
-/** The reason a participant had no vaccine card. "Other" (96) is shown as the
- *  free text the interviewer typed, never as the word "Other" -- that text is
- *  the whole reason this row needs a human decision. An unmapped code is shown
- *  as the code, so a new value in the instrument is visible rather than blank. */
+/** The reason a participant had no vaccine card, per the vx_card_no codebook
+ *  (1/2/3/96 -- see the AVERT Data Dictionary). "Other" (96) is prefixed onto
+ *  the interviewer's free text rather than shown bare, since a lone detail
+ *  string with no "Other" label reads as ambiguous out of context. An
+ *  unmapped code is shown as the code, so a new value in the instrument is
+ *  visible rather than blank. */
 function reasonLabel(e: Enrollee, t: ReturnType<typeof useTranslations>): string {
   const code = e.vx_card_no ?? "";
   if (code === "1") return t("verification.reasonLeftAtHome");
-  if (code === "96") return e.vx_card_no_oth?.trim() || t("verification.reasonOther");
+  if (code === "2") return t("verification.reasonNotGiven");
+  if (code === "3") return t("verification.reasonMisplaced");
+  if (code === "96") {
+    const detail = e.vx_card_no_oth?.trim();
+    return detail ? t("verification.reasonOtherDetail", { detail }) : t("verification.reasonOther");
+  }
   return code || "—";
 }
 
