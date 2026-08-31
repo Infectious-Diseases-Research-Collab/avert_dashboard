@@ -11,6 +11,7 @@
     "verification": "Verification visits",
     "dataQuality": "Data quality",
     "download": "Download",
+    "admin": "Admin",
     "signOut": "Sign out"
   },
   "countries": {
@@ -225,7 +226,24 @@
     "enrollee": "Enrollee data",
     "vaccinationStatus": "Vaccination-status data",
     "barcodes": "Barcode comparison (deployed vs used)",
+    "screeningCheck": "Screening check (site, date, RDT result only)",
     "button": "Download CSV"
+  },
+  "admin": {
+    "exportTitle": "Full dataset export",
+    "exportIntro": "Generates a time-limited link to the complete, unblinded dataset (every column, including RDT result and participant names). For the rare occasions the full dataset is genuinely needed — routine analysis should use the blinded download instead.",
+    "linkExpiry": "Link expires after",
+    "hours": "{n} hours",
+    "generate": "Generate export",
+    "generating": "Generating…",
+    "expiresAt": "Expires",
+    "noRows": "No rows in the current data — nothing to export.",
+    "historyTitle": "Export history",
+    "historyIntro": "Every full-dataset export generated, for audit purposes.",
+    "noHistory": "No exports generated yet.",
+    "requestedBy": "Requested by",
+    "rowCounts": "Rows",
+    "generatedAt": "Generated"
   },
   "auth": {
     "signIn": "Sign in",

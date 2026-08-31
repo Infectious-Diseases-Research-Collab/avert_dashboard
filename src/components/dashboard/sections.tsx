@@ -1049,6 +1049,11 @@ export function DownloadSection({ downloadQuery }: SectionProps) {
       label: t("download.barcodes"),
       href: `/api/download/barcodes?${downloadQuery}`,
     },
+    {
+      key: "screening_check",
+      label: t("download.screeningCheck"),
+      href: `/api/download/screening_check?${downloadQuery}`,
+    },
   ];
   return (
     <Card>

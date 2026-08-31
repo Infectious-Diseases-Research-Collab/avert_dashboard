@@ -12,6 +12,7 @@ import {
   DataQualitySection,
   DownloadSection,
 } from "@/components/dashboard/sections";
+import { AdminSection } from "@/components/dashboard/AdminSection";
 import type { TestType } from "@/lib/metrics";
 import type { Country, DataQualityIssue, DataQualityAuditEntry, Enrollee, Facility, Profile } from "@/lib/types";
 
@@ -21,7 +22,8 @@ type SectionKey =
   | "microscopy"
   | "verification"
   | "dataQuality"
-  | "download";
+  | "download"
+  | "admin";
 
 const SECTIONS: Record<SectionKey, React.ComponentType<React.ComponentProps<typeof OverviewSection>>> = {
   overview: OverviewSection,
@@ -30,6 +32,11 @@ const SECTIONS: Record<SectionKey, React.ComponentType<React.ComponentProps<type
   verification: VerificationSection,
   dataQuality: DataQualitySection,
   download: DownloadSection,
+  // Takes no section props — it fetches its own data (admin-only server
+  // routes), unlike every other section which reads from the filtered
+  // enrollee list. A component accepting fewer props than the record's
+  // type still satisfies it structurally.
+  admin: AdminSection,
 };
 
 function daysAgoISO(days: number): string {
@@ -163,6 +170,7 @@ export function DashboardShell({
     "verification",
     "dataQuality",
     "download",
+    ...(profile.is_admin ? (["admin"] as const) : []),
   ];
 
   return (

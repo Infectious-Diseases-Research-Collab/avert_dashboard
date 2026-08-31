@@ -11,6 +11,7 @@
     "verification": "Visites de vérification",
     "dataQuality": "Qualité des données",
     "download": "Télécharger",
+    "admin": "Admin",
     "signOut": "Se déconnecter"
   },
   "countries": {
@@ -225,7 +226,24 @@
     "enrollee": "Données d'inclusion",
     "vaccinationStatus": "Données de statut vaccinal",
     "barcodes": "Comparaison des codes-barres (déployés vs utilisés)",
+    "screeningCheck": "Vérification du dépistage (site, date, résultat TDR uniquement)",
     "button": "Télécharger CSV"
+  },
+  "admin": {
+    "exportTitle": "Export complet des données",
+    "exportIntro": "Génère un lien temporaire vers le jeu de données complet et non aveugle (toutes les colonnes, y compris le résultat TDR et les noms des participants). Réservé aux rares cas où le jeu de données complet est réellement nécessaire — l'analyse courante doit utiliser l'export aveugle.",
+    "linkExpiry": "Le lien expire après",
+    "hours": "{n} heures",
+    "generate": "Générer l'export",
+    "generating": "Génération…",
+    "expiresAt": "Expire",
+    "noRows": "Aucune ligne dans les données actuelles — rien à exporter.",
+    "historyTitle": "Historique des exports",
+    "historyIntro": "Tous les exports complets générés, à des fins d'audit.",
+    "noHistory": "Aucun export généré pour l'instant.",
+    "requestedBy": "Demandé par",
+    "rowCounts": "Lignes",
+    "generatedAt": "Généré"
   },
   "auth": {
     "signIn": "Connexion",

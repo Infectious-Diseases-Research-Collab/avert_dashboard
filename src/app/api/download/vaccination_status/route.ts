@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { toCsv, csvResponse } from "@/lib/csv";
 import { fetchAllRows } from "@/lib/supabase/paginate";
+import { stripBlindedFields } from "@/lib/blinding";
 
 type VaccinationStatusRow = { country: string; barcode: string; raw: Record<string, unknown> };
 
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
   const rows = data.map((r) => ({
     country: r.country,
     barcode: r.barcode,
-    ...(r.raw as Record<string, unknown>),
+    ...stripBlindedFields(r.raw as Record<string, unknown>),
   }));
 
   const date = new Date().toISOString().slice(0, 10);

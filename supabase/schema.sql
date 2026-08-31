@@ -692,6 +692,73 @@ drop policy if exists deployed_barcodes_select on public.deployed_barcodes;
 create policy deployed_barcodes_select on public.deployed_barcodes
   for select to authenticated using (public.auth_can_see(country));
 
+-- =====================================================================
+-- Full (unblinded) dataset export — admin-only, time-limited link
+-- =====================================================================
+-- Deliberately does NOT use the service-role key (that key is local-loader
+-- only — see Instructions.md — and must never enter the deployed app).
+-- The export route instead runs as the requesting admin's own authenticated
+-- session: RLS already scopes them to the countries they can see (same as
+-- every other query in the app), and the two policies below grant that same
+-- session just enough storage access to upload the generated CSVs and sign
+-- a URL for them. An admin whose country_access isn't 'BOTH' therefore gets
+-- an export scoped to what they could already see — not a limitation
+-- specific to this feature, just RLS applying consistently.
+--
+-- Private bucket: never made public, so the only way to read an object is a
+-- signed URL, which expires on its own. There is no plain SELECT policy for
+-- authenticated/anon, so a bare API call against the bucket (without a
+-- valid signed token) returns nothing for anyone, admin or not — the two
+-- policies below grant signing/upload rights, not read rights.
+insert into storage.buckets (id, name, public)
+values ('exports', 'exports', false)
+on conflict (id) do nothing;
+
+drop policy if exists exports_admin_insert on storage.objects;
+create policy exports_admin_insert on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'exports' and public.auth_is_admin());
+
+-- Required to call createSignedUrl(): Supabase authorizes signing the same
+-- way it authorizes a direct read, via this policy — it is not itself a
+-- public read grant, since only a possessor of the resulting signed token
+-- (not this policy) can fetch the object.
+drop policy if exists exports_admin_select on storage.objects;
+create policy exports_admin_select on storage.objects
+  for select to authenticated
+  using (bucket_id = 'exports' and public.auth_is_admin());
+
+-- Audit trail of every full-dataset export generated, independent of the
+-- storage bucket's own signed-URL expiry — this is the durable "who
+-- generated the unblinded dataset and when" record for the study team,
+-- and outlives the files themselves (which a lifecycle rule may delete
+-- after they expire).
+create table if not exists public.full_dataset_exports (
+  id            bigint generated always as identity primary key,
+  requested_by  text not null,
+  storage_paths jsonb not null,   -- {"enrollee": "...", "vaccination_status": "...", "blood_smear": "..."}
+  row_counts    jsonb not null,   -- {"enrollee": 1169, "vaccination_status": 42, "blood_smear": 0}
+  expires_at    timestamptz not null,
+  created_at    timestamptz not null default now()
+);
+create index if not exists full_dataset_exports_created_idx on public.full_dataset_exports (created_at desc);
+
+alter table public.full_dataset_exports enable row level security;
+
+drop policy if exists full_dataset_exports_select on public.full_dataset_exports;
+create policy full_dataset_exports_select on public.full_dataset_exports
+  for select to authenticated using (public.auth_is_admin());
+
+-- requested_by must match the caller's own JWT, same principle as
+-- log_access_event's actor column — an admin can log an export as
+-- themselves, never on another user's behalf.
+drop policy if exists full_dataset_exports_insert on public.full_dataset_exports;
+create policy full_dataset_exports_insert on public.full_dataset_exports
+  for insert to authenticated
+  with check (public.auth_is_admin() and requested_by = public.auth_email());
+
+grant select, insert on public.full_dataset_exports to authenticated;
+
 -- ---------------------------------------------------------------------
 -- Table-level grants. RLS filters rows, but the role still needs SELECT.
 -- (Supabase grants these to authenticated by default; explicit here so the
