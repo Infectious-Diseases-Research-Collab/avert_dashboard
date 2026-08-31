@@ -85,15 +85,23 @@ export interface HistBin {
   [series: string]: number | string;
 }
 
-/** Bin values into fixed-width buckets, one count column per series. */
+/**
+ * Bin values into fixed-width buckets, one count column per series.
+ *
+ * `minMax`, when given, pads the bins out to at least that value (with
+ * zero-count bins) even if no data reaches that far. Without it, a reference
+ * line beyond the highest observed value has no matching bin to attach to on
+ * the chart's category axis and silently fails to render.
+ */
 export function histogram(
   data: { value: number; series: string }[],
   binWidth: number,
   seriesOrder: string[],
+  minMax?: number,
 ): HistBin[] {
   if (data.length === 0) return [];
   const min = Math.floor(Math.min(...data.map((d) => d.value)) / binWidth) * binWidth;
-  const max = Math.max(...data.map((d) => d.value));
+  const max = Math.max(Math.max(...data.map((d) => d.value)), minMax ?? -Infinity);
   const bins = new Map<number, HistBin>();
   for (let x = min; x <= max; x += binWidth) {
     const bin: HistBin = { x, label: `${x}` };
@@ -913,7 +921,10 @@ export function ageAtVaccination(screened: Enrollee[]): HistBin[] {
       if (d) data.push({ value: daysBetween(d, dob) / 30.44, series: `Dose ${i + 1}` });
     });
   }
-  return histogram(data, 1, ["Dose 1", "Dose 2", "Dose 3", "Dose 4"]);
+  // Floor of 20 months so the 18-month booster reference line always has a
+  // bin to attach to, even for a country/date range where no child has
+  // reached that age yet (e.g. Uganda early in the study).
+  return histogram(data, 1, ["Dose 1", "Dose 2", "Dose 3", "Dose 4"], 20);
 }
 
 export function timeSinceLastDose(screened: Enrollee[]): HistBin[] {
