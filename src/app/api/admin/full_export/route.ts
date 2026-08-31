@@ -100,7 +100,11 @@ export async function POST(request: Request) {
     storagePaths[table] = path;
   }
 
-  const expiresAt = new Date(Date.now() + expiresInSeconds).toISOString();
+  // Date arithmetic is in milliseconds; expiresInSeconds is, as the name
+  // says, seconds — createSignedUrl() above wants seconds directly, but this
+  // needs the *1000 or it understates the expiry by 1000x (e.g. "48 hours"
+  // logged and shown as under 3 minutes).
+  const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
   const { error: logError } = await supabase.from("full_dataset_exports").insert({
     requested_by: user.email,
     storage_paths: storagePaths,
