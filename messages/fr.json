@@ -243,7 +243,13 @@
     "noHistory": "Aucun export généré pour l'instant.",
     "requestedBy": "Demandé par",
     "rowCounts": "Lignes",
-    "generatedAt": "Généré"
+    "generatedAt": "Généré",
+    "status": "Statut",
+    "statusActive": "Actif",
+    "statusExpired": "Expiré",
+    "statusRevoked": "Révoqué",
+    "revoke": "Révoquer",
+    "revoking": "Révocation…"
   },
   "auth": {
     "signIn": "Connexion",

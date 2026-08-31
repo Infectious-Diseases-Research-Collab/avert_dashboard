@@ -105,19 +105,24 @@ export async function POST(request: Request) {
   // needs the *1000 or it understates the expiry by 1000x (e.g. "48 hours"
   // logged and shown as under 3 minutes).
   const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
-  const { error: logError } = await supabase.from("full_dataset_exports").insert({
-    requested_by: user.email,
-    storage_paths: storagePaths,
-    row_counts: rowCounts,
-    expires_at: expiresAt,
-  });
+  const { data: logRow, error: logError } = await supabase
+    .from("full_dataset_exports")
+    .insert({
+      requested_by: user.email,
+      storage_paths: storagePaths,
+      row_counts: rowCounts,
+      expires_at: expiresAt,
+    })
+    .select("id")
+    .single();
   if (logError) {
     // The export itself succeeded and the links are live; failing to log it
     // shouldn't stop the admin from getting their data, but it does mean the
     // audit trail is incomplete for this one — worth surfacing, not silently
-    // swallowing.
+    // swallowing. It also means there's no id to revoke by, so the UI won't
+    // offer a revoke button for this export.
     console.error("full_dataset_exports insert failed:", logError.message);
   }
 
-  return Response.json({ links, rowCounts, expiresAt, expiresHours });
+  return Response.json({ id: logRow?.id ?? null, links, rowCounts, expiresAt, expiresHours });
 }

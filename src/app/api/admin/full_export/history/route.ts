@@ -17,7 +17,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("full_dataset_exports")
-    .select("requested_by,row_counts,expires_at,created_at")
+    .select("id,requested_by,row_counts,expires_at,created_at,revoked_at")
     .order("created_at", { ascending: false })
     .limit(20);
   if (error) return new Response(error.message, { status: 500 });

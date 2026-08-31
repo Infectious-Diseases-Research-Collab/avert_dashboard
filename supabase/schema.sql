@@ -728,6 +728,15 @@ create policy exports_admin_select on storage.objects
   for select to authenticated
   using (bucket_id = 'exports' and public.auth_is_admin());
 
+-- Lets an admin revoke a link before its natural expiry, by deleting the
+-- underlying object — a signed URL has no separate revocation mechanism of
+-- its own (the token is self-contained and valid until it expires), so
+-- removing what it points to is the only way to invalidate it early.
+drop policy if exists exports_admin_delete on storage.objects;
+create policy exports_admin_delete on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'exports' and public.auth_is_admin());
+
 -- Audit trail of every full-dataset export generated, independent of the
 -- storage bucket's own signed-URL expiry — this is the durable "who
 -- generated the unblinded dataset and when" record for the study team,
@@ -739,9 +748,15 @@ create table if not exists public.full_dataset_exports (
   storage_paths jsonb not null,   -- {"enrollee": "...", "vaccination_status": "...", "blood_smear": "..."}
   row_counts    jsonb not null,   -- {"enrollee": 1169, "vaccination_status": 42, "blood_smear": 0}
   expires_at    timestamptz not null,
-  created_at    timestamptz not null default now()
+  created_at    timestamptz not null default now(),
+  revoked_at    timestamptz
 );
 create index if not exists full_dataset_exports_created_idx on public.full_dataset_exports (created_at desc);
+
+-- Idempotent migration for existing databases (`create table if not exists`
+-- above is a no-op once the table exists).
+alter table public.full_dataset_exports
+  add column if not exists revoked_at timestamptz;
 
 alter table public.full_dataset_exports enable row level security;
 
@@ -757,7 +772,18 @@ create policy full_dataset_exports_insert on public.full_dataset_exports
   for insert to authenticated
   with check (public.auth_is_admin() and requested_by = public.auth_email());
 
-grant select, insert on public.full_dataset_exports to authenticated;
+-- Any admin may revoke any export (same trust level as set_issue_status,
+-- set_verification_required, etc. elsewhere in this schema — is_admin is
+-- already the broadest write privilege in the app, not scoped per-admin).
+-- The revoke API route only ever sets revoked_at, but RLS itself doesn't
+-- restrict which columns an update touches.
+drop policy if exists full_dataset_exports_update on public.full_dataset_exports;
+create policy full_dataset_exports_update on public.full_dataset_exports
+  for update to authenticated
+  using (public.auth_is_admin())
+  with check (public.auth_is_admin());
+
+grant select, insert, update on public.full_dataset_exports to authenticated;
 
 -- ---------------------------------------------------------------------
 -- Table-level grants. RLS filters rows, but the role still needs SELECT.

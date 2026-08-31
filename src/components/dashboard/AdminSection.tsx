@@ -7,6 +7,7 @@ import { Card, SectionTitle } from "@/components/ui";
 type ExportLinks = Partial<Record<"enrollee" | "vaccination_status" | "blood_smear", string>>;
 
 interface ExportResult {
+  id: number | null;
   links: ExportLinks;
   rowCounts: Record<string, number>;
   expiresAt: string;
@@ -14,10 +15,27 @@ interface ExportResult {
 }
 
 interface ExportHistoryRow {
+  id: number;
   requested_by: string;
   row_counts: Record<string, number>;
   expires_at: string;
   created_at: string;
+  revoked_at: string | null;
+}
+
+type ExportStatus = "active" | "expired" | "revoked";
+
+interface ExportHistoryRowWithStatus extends ExportHistoryRow {
+  status: ExportStatus;
+}
+
+/** Classified once when history is fetched, not on every render — Date.now()
+ * is an impure call the project's react-hooks/purity rule disallows inside
+ * a component's render body. */
+function classify(h: ExportHistoryRow, nowMs: number): ExportHistoryRowWithStatus {
+  const status: ExportStatus =
+    h.revoked_at != null ? "revoked" : new Date(h.expires_at).getTime() <= nowMs ? "expired" : "active";
+  return { ...h, status };
 }
 
 const TABLE_LABELS: Record<string, string> = {
@@ -49,14 +67,17 @@ export function AdminSection() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ExportResult | null>(null);
-  const [history, setHistory] = useState<ExportHistoryRow[] | null>(null);
+  const [history, setHistory] = useState<ExportHistoryRowWithStatus[] | null>(null);
+  const [revokingId, setRevokingId] = useState<number | null>(null);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
 
   const loadHistory = async () => {
     try {
       const res = await fetch("/api/admin/full_export/history");
       if (!res.ok) return;
       const body = await res.json();
-      setHistory(body.exports ?? []);
+      const nowMs = Date.now();
+      setHistory((body.exports ?? []).map((h: ExportHistoryRow) => classify(h, nowMs)));
     } catch {
       // History is a nice-to-have audit view; a failed fetch just leaves it empty.
     }
@@ -94,6 +115,30 @@ export function AdminSection() {
     }
   };
 
+  const revoke = async (id: number) => {
+    setRevokingId(id);
+    setRevokeError(null);
+    try {
+      const res = await fetch("/api/admin/full_export/revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) {
+        setRevokeError(await res.text());
+        return;
+      }
+      // Clear the just-generated panel if it's the one just revoked, so a
+      // dead link doesn't stay on screen looking usable.
+      if (result?.id === id) setResult(null);
+      void loadHistory();
+    } catch (e) {
+      setRevokeError(e instanceof Error ? e.message : "Request failed");
+    } finally {
+      setRevokingId(null);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <Card>
@@ -123,9 +168,21 @@ export function AdminSection() {
 
         {result && (
           <div className="border border-[var(--border)] rounded-lg p-4 space-y-2">
-            <p className="text-sm muted">
-              {t("admin.expiresAt")}: <span className="font-medium text-[var(--text)]">{fmt(result.expiresAt)}</span>
-            </p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm muted">
+                {t("admin.expiresAt")}:{" "}
+                <span className="font-medium text-[var(--text)]">{fmt(result.expiresAt)}</span>
+              </p>
+              {result.id != null && (
+                <button
+                  onClick={() => revoke(result.id!)}
+                  disabled={revokingId === result.id}
+                  className="text-sm rounded-lg border border-[var(--error)] text-[var(--error)] px-3 py-1.5 hover:bg-[color-mix(in_srgb,var(--error)_10%,transparent)] disabled:opacity-60 whitespace-nowrap"
+                >
+                  {revokingId === result.id ? t("admin.revoking") : t("admin.revoke")}
+                </button>
+              )}
+            </div>
             {Object.entries(result.links).length === 0 ? (
               <p className="text-sm muted">{t("admin.noRows")}</p>
             ) : (
@@ -149,6 +206,7 @@ export function AdminSection() {
             )}
           </div>
         )}
+        {revokeError && <p className="text-sm text-[var(--error)] mt-2">{revokeError}</p>}
       </Card>
 
       <Card>
@@ -164,11 +222,13 @@ export function AdminSection() {
                   <th className="py-2 pr-4">{t("admin.rowCounts")}</th>
                   <th className="py-2 pr-4">{t("admin.generatedAt")}</th>
                   <th className="py-2 pr-4">{t("admin.expiresAt")}</th>
+                  <th className="py-2 pr-4">{t("admin.status")}</th>
+                  <th className="py-2 pr-4" />
                 </tr>
               </thead>
               <tbody>
-                {history.map((h, i) => (
-                  <tr key={i} className="border-b border-[var(--border)] last:border-0">
+                {history.map((h) => (
+                  <tr key={h.id} className="border-b border-[var(--border)] last:border-0">
                     <td className="py-2 pr-4">{h.requested_by}</td>
                     <td className="py-2 pr-4">
                       {Object.entries(h.row_counts)
@@ -177,6 +237,24 @@ export function AdminSection() {
                     </td>
                     <td className="py-2 pr-4">{fmt(h.created_at)}</td>
                     <td className="py-2 pr-4">{fmt(h.expires_at)}</td>
+                    <td className="py-2 pr-4">
+                      {h.status === "revoked"
+                        ? t("admin.statusRevoked")
+                        : h.status === "expired"
+                          ? t("admin.statusExpired")
+                          : t("admin.statusActive")}
+                    </td>
+                    <td className="py-2 pr-4">
+                      {h.status === "active" && (
+                        <button
+                          onClick={() => revoke(h.id)}
+                          disabled={revokingId === h.id}
+                          className="text-sm rounded-lg border border-[var(--error)] text-[var(--error)] px-2.5 py-1 hover:bg-[color-mix(in_srgb,var(--error)_10%,transparent)] disabled:opacity-60 whitespace-nowrap"
+                        >
+                          {revokingId === h.id ? t("admin.revoking") : t("admin.revoke")}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
