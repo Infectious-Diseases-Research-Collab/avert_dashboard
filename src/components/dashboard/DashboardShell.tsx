@@ -81,6 +81,11 @@ export function DashboardShell({
   const [mrc, setMrc] = useState<string>("all");
   const [from, setFrom] = useState<string>(daysAgoISO(180));
   const [to, setTo] = useState<string>(new Date().toISOString().slice(0, 10));
+  // Date-of-birth window, empty by default (no restriction). Separate from the
+  // enrollment date range above: this narrows to a birth cohort, e.g. only
+  // children born on or after 2025-01-01.
+  const [dobFrom, setDobFrom] = useState<string>("");
+  const [dobTo, setDobTo] = useState<string>("");
   const [testType, setTestType] = useState<TestType>("rdt");
 
   const completedSet = useMemo(() => new Set(completedBarcodes), [completedBarcodes]);
@@ -105,9 +110,13 @@ export function DashboardShell({
         if (from && e.startdate < from) return false;
         if (to && e.startdate > to) return false;
       }
+      if (e.dob) {
+        if (dobFrom && e.dob < dobFrom) return false;
+        if (dobTo && e.dob > dobTo) return false;
+      }
       return true;
     });
-  }, [enrollees, country, mrc, from, to]);
+  }, [enrollees, country, mrc, from, to, dobFrom, dobTo]);
 
   const filteredIssues = useMemo(
     () => issues.filter((i) => (country === "ALL" ? true : i.country === country)),
@@ -124,6 +133,8 @@ export function DashboardShell({
     if (mrc !== "all") p.set("mrc", mrc);
     if (from) p.set("from", from);
     if (to) p.set("to", to);
+    // Deliberately excludes the date-of-birth filter: that narrows the figures
+    // shown on screen only, and does not scope the downloadable dataset.
     return p.toString();
   }, [country, mrc, from, to]);
 
@@ -131,6 +142,7 @@ export function DashboardShell({
   const sectionProps = {
     enrollees: filtered,
     testType,
+    country,
     // Country-scoped so the map only plots sites the current filter covers.
     facilities: facilityOptions,
     facilityNames,
@@ -248,6 +260,17 @@ export function DashboardShell({
           </Field>
           <Field label={t("filters.to")}>
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="select" />
+          </Field>
+          <Field label={t("filters.dobFrom")}>
+            <input
+              type="date"
+              value={dobFrom}
+              onChange={(e) => setDobFrom(e.target.value)}
+              className="select"
+            />
+          </Field>
+          <Field label={t("filters.dobTo")}>
+            <input type="date" value={dobTo} onChange={(e) => setDobTo(e.target.value)} className="select" />
           </Field>
           <Field label={t("filters.caseDefinition")}>
             <select

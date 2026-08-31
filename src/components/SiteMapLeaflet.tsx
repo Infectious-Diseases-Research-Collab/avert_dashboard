@@ -1,9 +1,8 @@
 "use client";
 
 import "leaflet/dist/leaflet.css";
-import { useMemo } from "react";
-import { MapContainer, TileLayer, CircleMarker, Tooltip } from "react-leaflet";
-import type { LatLngBoundsExpression } from "leaflet";
+import { useEffect, useMemo } from "react";
+import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from "react-leaflet";
 import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/ui";
 import type { SiteProgress } from "@/lib/metrics";
@@ -19,6 +18,41 @@ function paceColor(ratio: number): string {
   if (ratio >= 0.9) return ON_TRACK;
   if (ratio >= 0.6) return NEAR;
   return BEHIND;
+}
+
+/** [[south, west], [north, east]] — the extent of the plotted sites. */
+type Bounds = [[number, number], [number, number]];
+
+/**
+ * Re-fit the viewport whenever the plotted sites change.
+ *
+ * MapContainer applies its `bounds` prop once, in a mount-guarded ref
+ * callback, and ignores every later change — so switching the country filter
+ * would otherwise leave the map framed on the previous country. Burkina and
+ * Uganda are ~37 degrees of longitude apart, which means looking at an empty
+ * map until you pan halfway across Africa.
+ *
+ * Keyed on the four coordinates rather than the array, because siteProgress
+ * rebuilds its result on every filter change: depending on array identity
+ * would yank the map back to the default view each time the date or DOB
+ * filter moved, undoing whatever the user had panned or zoomed to.
+ */
+function FitBounds({ bounds }: { bounds: Bounds }) {
+  const map = useMap();
+  const [[south, west], [north, east]] = bounds;
+  useEffect(() => {
+    map.fitBounds(
+      [
+        [south, west],
+        [north, east],
+      ],
+      // Not animated: this is a filter response, so the new framing should be
+      // immediate rather than a slow fly between two countries ~37 degrees
+      // apart, and it avoids depending on a CSS transition completing.
+      { padding: [30, 30], animate: false },
+    );
+  }, [map, south, west, north, east]);
+  return null;
 }
 
 /**
@@ -39,7 +73,7 @@ export function SiteMapLeaflet({
 }) {
   const t = useTranslations();
 
-  const bounds: LatLngBoundsExpression | null = useMemo(() => {
+  const bounds: Bounds | null = useMemo(() => {
     if (sites.length === 0) return null;
     const lats = sites.map((s) => s.latitude);
     const lons = sites.map((s) => s.longitude);
@@ -57,6 +91,7 @@ export function SiteMapLeaflet({
     <div>
       <div style={{ height }} className="rounded-lg overflow-hidden">
         <MapContainer bounds={bounds} boundsOptions={{ padding: [30, 30] }} style={{ height: "100%", width: "100%" }}>
+          <FitBounds bounds={bounds} />
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

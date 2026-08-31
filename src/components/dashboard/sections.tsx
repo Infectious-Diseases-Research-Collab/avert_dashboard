@@ -54,11 +54,13 @@ import {
   type TestType,
   type AgeDistributionBy,
 } from "@/lib/metrics";
-import type { Enrollee, Facility, DataQualityIssue, DataQualityAuditEntry } from "@/lib/types";
+import type { Country, Enrollee, Facility, DataQualityIssue, DataQualityAuditEntry } from "@/lib/types";
 
 interface SectionProps {
   enrollees: Enrollee[];
   testType: TestType;
+  /** Current country filter; "ALL" when both countries are in view. */
+  country: Country | "ALL";
   /** Facilities visible under the current country filter (carries coordinates). */
   facilities: Facility[];
   facilityNames: Map<string, string>;
@@ -736,7 +738,20 @@ export function OverviewSection({
 
 // ---------------------------------------------------------------------------
 
-export function VaccineCoverageSection({ enrollees }: SectionProps) {
+/**
+ * Scheduled dose ages in months, by country: Burkina Faso runs the primary
+ * series a month earlier than Uganda and boosts at 15 months rather than 18.
+ * There is deliberately no "ALL" entry — the two schedules overlap at 6 and 7
+ * months, so plotting both sets at once draws doubled lines readers can't
+ * attribute to either country. The chart drops the reference lines instead
+ * (see the subtitle) when both countries are in view.
+ */
+const DOSE_SCHEDULE: Record<Country, number[]> = {
+  BF: [5, 6, 7, 15],
+  UG: [6, 7, 8, 18],
+};
+
+export function VaccineCoverageSection({ enrollees, country }: SectionProps) {
   const t = useTranslations();
   const kpis = useMemo(() => computeKpis(enrollees, "rdt"), [enrollees]);
   const granularity = useMemo(() => pickTrendGranularity(enrollees), [enrollees]);
@@ -749,6 +764,9 @@ export function VaccineCoverageSection({ enrollees }: SectionProps) {
   const coverage = useMemo(() => coverageByWeek(enrollees, granularity), [enrollees, granularity]);
   const covByAge = useMemo(() => coverageByAge(enrollees), [enrollees]);
   const ageVax = useMemo(() => ageAtVaccination(enrollees), [enrollees]);
+  // Null when both countries are in view — the schedules differ, so no single
+  // set of reference lines is correct.
+  const schedule = country === "ALL" ? null : DOSE_SCHEDULE[country];
   const sinceLast = useMemo(() => timeSinceLastDose(enrollees), [enrollees]);
   const between = useMemo(() => timeBetweenDoses(enrollees), [enrollees]);
 
@@ -807,11 +825,18 @@ export function VaccineCoverageSection({ enrollees }: SectionProps) {
       </Card>
 
       <Card>
-        <SectionTitle title={t("charts.ageAtVaccination")} subtitle={t("charts.ageAtVaccinationSub")} />
+        <SectionTitle
+          title={t("charts.ageAtVaccination")}
+          subtitle={
+            schedule
+              ? t("charts.ageAtVaccinationSub", { lines: schedule.join(", ") })
+              : t("charts.ageAtVaccinationSubAll")
+          }
+        />
         <MultiBar
           data={ageVax as unknown as Record<string, unknown>[]}
           xKey="x"
-          refLines={[6, 7, 8, 18].map((x) => ({ x, label: `${x}` }))}
+          refLines={(schedule ?? []).map((x) => ({ x, label: `${x}` }))}
           series={[
             { key: "Dose 1", name: t("charts.dose1"), color: PALETTE.primary },
             { key: "Dose 2", name: t("charts.dose2"), color: PALETTE.pos },
