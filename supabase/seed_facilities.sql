@@ -29,7 +29,8 @@ insert into public.facilities (country, mrc, name, district, region, transmissio
   ('BF','008','Wara','Karangasso-Vigué','Hauts-Bassins','Forte'),
   ('BF','009','Déguélin','Karangasso-Vigué','Hauts-Bassins','Forte'),
   ('BF','010','Boromo','Boromo','Boucle Mouhoun','Forte'),
-  ('BF','011','Ouahabou','Boromo','Boucle Mouhoun','Forte')
+  ('BF','011','Ouahabou','Boromo','Boucle Mouhoun','Forte'),
+  ('BF','013','Boromo Urbain 2','Boromo','Boucle Mouhoun','Forte')
 on conflict (country, mrc) do update
   set name = excluded.name, district = excluded.district,
       region = excluded.region, transmission_zone = excluded.transmission_zone;
@@ -55,7 +56,8 @@ update public.facilities as f
     ('009', 11.0907365,  -3.937151),
     ('010', 11.743942,   -2.934045),
     ('011', 11.694677,   -3.098722),
-    ('012', 12.040485,   -0.763302)
+    ('012', 12.040485,   -0.763302),
+    ('013', 11.75151,    -2.93383)
   ) as c(mrc, lat, lon)
  where f.country = 'BF' and f.mrc = c.mrc;
 

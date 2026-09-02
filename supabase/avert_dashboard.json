@@ -660,6 +660,53 @@
           ]
         },
         {
+          "table_name": "full_dataset_exports",
+          "columns": [
+            {
+              "column": "id",
+              "type": "bigint",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "column": "requested_by",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "column": "storage_paths",
+              "type": "jsonb",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "column": "row_counts",
+              "type": "jsonb",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "column": "expires_at",
+              "type": "timestamp with time zone",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "column": "created_at",
+              "type": "timestamp with time zone",
+              "nullable": false,
+              "default": "now()"
+            },
+            {
+              "column": "revoked_at",
+              "type": "timestamp with time zone",
+              "nullable": true,
+              "default": null
+            }
+          ]
+        },
+        {
           "table_name": "pipeline_runs",
           "columns": [
             {
@@ -1041,6 +1088,36 @@
           "with_check": null
         },
         {
+          "table": "full_dataset_exports",
+          "policy": "full_dataset_exports_insert",
+          "command": "INSERT",
+          "roles": [
+            "authenticated"
+          ],
+          "using_expr": null,
+          "with_check": "(auth_is_admin() AND (requested_by = auth_email()))"
+        },
+        {
+          "table": "full_dataset_exports",
+          "policy": "full_dataset_exports_select",
+          "command": "SELECT",
+          "roles": [
+            "authenticated"
+          ],
+          "using_expr": "auth_is_admin()",
+          "with_check": null
+        },
+        {
+          "table": "full_dataset_exports",
+          "policy": "full_dataset_exports_update",
+          "command": "UPDATE",
+          "roles": [
+            "authenticated"
+          ],
+          "using_expr": "auth_is_admin()",
+          "with_check": "auth_is_admin()"
+        },
+        {
           "table": "pipeline_runs",
           "policy": "pipeline_runs_select",
           "command": "SELECT",
@@ -1134,6 +1211,11 @@
         },
         {
           "table": "facilities",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "table": "full_dataset_exports",
           "rls_enabled": true,
           "rls_forced": false
         },
@@ -2299,6 +2381,132 @@
           "is_grantable": false
         },
         {
+          "table": "full_dataset_exports",
+          "grantee": "anon",
+          "privilege": "DELETE",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "anon",
+          "privilege": "INSERT",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "anon",
+          "privilege": "REFERENCES",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "anon",
+          "privilege": "SELECT",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "anon",
+          "privilege": "TRIGGER",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "anon",
+          "privilege": "TRUNCATE",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "anon",
+          "privilege": "UPDATE",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "authenticated",
+          "privilege": "DELETE",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "authenticated",
+          "privilege": "INSERT",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "authenticated",
+          "privilege": "REFERENCES",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "authenticated",
+          "privilege": "SELECT",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "authenticated",
+          "privilege": "TRIGGER",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "authenticated",
+          "privilege": "TRUNCATE",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "authenticated",
+          "privilege": "UPDATE",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "service_role",
+          "privilege": "DELETE",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "service_role",
+          "privilege": "INSERT",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "service_role",
+          "privilege": "REFERENCES",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "service_role",
+          "privilege": "SELECT",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "service_role",
+          "privilege": "TRIGGER",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "service_role",
+          "privilege": "TRUNCATE",
+          "is_grantable": false
+        },
+        {
+          "table": "full_dataset_exports",
+          "grantee": "service_role",
+          "privilege": "UPDATE",
+          "is_grantable": false
+        },
+        {
           "table": "pipeline_runs",
           "grantee": "anon",
           "privilege": "DELETE",
@@ -3436,6 +3644,69 @@
         },
         {
           "table": "facilities",
+          "exposed_to_anon": true,
+          "exposed_to_authenticated": true,
+          "grants": [
+            {
+              "grantee": "anon",
+              "privilege": "DELETE"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "INSERT"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "REFERENCES"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "SELECT"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "TRIGGER"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "TRUNCATE"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "UPDATE"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "DELETE"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "INSERT"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "REFERENCES"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "SELECT"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "TRIGGER"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "TRUNCATE"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "UPDATE"
+            }
+          ]
+        },
+        {
+          "table": "full_dataset_exports",
           "exposed_to_anon": true,
           "exposed_to_authenticated": true,
           "grants": [
@@ -5028,6 +5299,16 @@
           "table": "facilities",
           "index": "facilities_pkey",
           "definition": "CREATE UNIQUE INDEX facilities_pkey ON public.facilities USING btree (country, mrc)"
+        },
+        {
+          "table": "full_dataset_exports",
+          "index": "full_dataset_exports_created_idx",
+          "definition": "CREATE INDEX full_dataset_exports_created_idx ON public.full_dataset_exports USING btree (created_at DESC)"
+        },
+        {
+          "table": "full_dataset_exports",
+          "index": "full_dataset_exports_pkey",
+          "definition": "CREATE UNIQUE INDEX full_dataset_exports_pkey ON public.full_dataset_exports USING btree (id)"
         },
         {
           "table": "pipeline_runs",
