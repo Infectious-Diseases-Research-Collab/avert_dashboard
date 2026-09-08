@@ -416,6 +416,65 @@
           ]
         },
         {
+          "table_name": "duplicate_records",
+          "columns": [
+            {
+              "column": "id",
+              "type": "bigint",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "column": "country",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "column": "source_table",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "column": "barcode",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "column": "dropped_uniqueid",
+              "type": "text",
+              "nullable": true,
+              "default": null
+            },
+            {
+              "column": "kept_uniqueid",
+              "type": "text",
+              "nullable": true,
+              "default": null
+            },
+            {
+              "column": "raw",
+              "type": "jsonb",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "column": "lastmod",
+              "type": "timestamp with time zone",
+              "nullable": true,
+              "default": null
+            },
+            {
+              "column": "recorded_at",
+              "type": "timestamp with time zone",
+              "nullable": false,
+              "default": "now()"
+            }
+          ]
+        },
+        {
           "table_name": "enrollee",
           "columns": [
             {
@@ -1068,6 +1127,16 @@
           "with_check": null
         },
         {
+          "table": "duplicate_records",
+          "policy": "duplicate_records_select",
+          "command": "SELECT",
+          "roles": [
+            "authenticated"
+          ],
+          "using_expr": "auth_can_see(country)",
+          "with_check": null
+        },
+        {
           "table": "enrollee",
           "policy": "enrollee_select",
           "command": "SELECT",
@@ -1201,6 +1270,11 @@
         },
         {
           "table": "deployed_barcodes",
+          "rls_enabled": true,
+          "rls_forced": false
+        },
+        {
+          "table": "duplicate_records",
           "rls_enabled": true,
           "rls_forced": false
         },
@@ -2124,6 +2198,132 @@
         },
         {
           "table": "deployed_barcodes",
+          "grantee": "service_role",
+          "privilege": "UPDATE",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "anon",
+          "privilege": "DELETE",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "anon",
+          "privilege": "INSERT",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "anon",
+          "privilege": "REFERENCES",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "anon",
+          "privilege": "SELECT",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "anon",
+          "privilege": "TRIGGER",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "anon",
+          "privilege": "TRUNCATE",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "anon",
+          "privilege": "UPDATE",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "authenticated",
+          "privilege": "DELETE",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "authenticated",
+          "privilege": "INSERT",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "authenticated",
+          "privilege": "REFERENCES",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "authenticated",
+          "privilege": "SELECT",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "authenticated",
+          "privilege": "TRIGGER",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "authenticated",
+          "privilege": "TRUNCATE",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "authenticated",
+          "privilege": "UPDATE",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "service_role",
+          "privilege": "DELETE",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "service_role",
+          "privilege": "INSERT",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "service_role",
+          "privilege": "REFERENCES",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "service_role",
+          "privilege": "SELECT",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "service_role",
+          "privilege": "TRIGGER",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
+          "grantee": "service_role",
+          "privilege": "TRUNCATE",
+          "is_grantable": false
+        },
+        {
+          "table": "duplicate_records",
           "grantee": "service_role",
           "privilege": "UPDATE",
           "is_grantable": false
@@ -3580,6 +3780,69 @@
           ]
         },
         {
+          "table": "duplicate_records",
+          "exposed_to_anon": true,
+          "exposed_to_authenticated": true,
+          "grants": [
+            {
+              "grantee": "anon",
+              "privilege": "DELETE"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "INSERT"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "REFERENCES"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "SELECT"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "TRIGGER"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "TRUNCATE"
+            },
+            {
+              "grantee": "anon",
+              "privilege": "UPDATE"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "DELETE"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "INSERT"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "REFERENCES"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "SELECT"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "TRIGGER"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "TRUNCATE"
+            },
+            {
+              "grantee": "authenticated",
+              "privilege": "UPDATE"
+            }
+          ]
+        },
+        {
           "table": "enrollee",
           "exposed_to_anon": true,
           "exposed_to_authenticated": true,
@@ -4352,6 +4615,13 @@
           "definition": "CREATE OR REPLACE FUNCTION public.strict_word_similarity_op(text, text)\n RETURNS boolean\n LANGUAGE c\n STABLE PARALLEL SAFE STRICT\nAS '$libdir/pg_trgm', $function$strict_word_similarity_op$function$\n"
         },
         {
+          "name": "sync_duplicate_barcode_issues",
+          "args": "p_check_code text, p_table text, p_issues jsonb",
+          "returns": "int4",
+          "security_definer": true,
+          "definition": "CREATE OR REPLACE FUNCTION public.sync_duplicate_barcode_issues(p_check_code text, p_table text, p_issues jsonb)\n RETURNS integer\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\ndeclare\n  n integer;\nbegin\n  insert into public.data_quality_issues\n    (country, check_code, severity, barcode, description, description_fr, status, detected_at, resolved_at)\n  select i->>'country', p_check_code, 'warning', i->>'barcode', i->>'description', i->>'description_fr',\n         'open', now(), null\n  from jsonb_array_elements(p_issues) as i\n  on conflict (check_code, coalesce(uniqueid,''), coalesce(barcode,''), coalesce(field,''), coalesce(related_barcode,''))\n  do update set\n    country        = excluded.country,\n    description    = excluded.description,\n    description_fr = excluded.description_fr,\n    status         = 'open',\n    detected_at    = case when data_quality_issues.status = 'resolved'\n                          then now() else data_quality_issues.detected_at end,\n    resolved_at    = null\n  where data_quality_issues.status <> 'dismissed';\n\n  get diagnostics n = row_count;\n\n  -- Resolve a previously reported collision for this check that isn't\n  -- firing this run -- e.g. the source data was corrected (a device\n  -- re-upload with a fixed barcode) so there's nothing left to collapse.\n  update public.data_quality_issues d\n  set status = 'resolved', resolved_at = now()\n  where d.status = 'open'\n    and d.check_code = p_check_code\n    and not exists (\n      select 1 from jsonb_array_elements(p_issues) as i where (i->>'barcode') = d.barcode\n    );\n\n  -- Record every dropped row so a user can inspect what got collapsed.\n  -- Append-only: never deleted, even once the issue above resolves.\n  insert into public.duplicate_records\n    (country, source_table, barcode, dropped_uniqueid, kept_uniqueid, raw, lastmod)\n  select\n    i->>'country', p_table, i->>'barcode',\n    d->>'uniqueid', i->>'kept_uniqueid', (d->'raw'), nullif(d->>'lastmod','')::timestamptz\n  from jsonb_array_elements(p_issues) as i\n  cross join jsonb_array_elements(i->'dropped') as d\n  on conflict (source_table, dropped_uniqueid) do update set\n    barcode       = excluded.barcode,\n    kept_uniqueid = excluded.kept_uniqueid,\n    raw           = excluded.raw,\n    lastmod       = excluded.lastmod,\n    country       = excluded.country;\n\n  return n;\nend;\n$function$\n"
+        },
+        {
           "name": "word_similarity",
           "args": "text, text",
           "returns": "float4",
@@ -5073,6 +5343,24 @@
           "is_grantable": false
         },
         {
+          "routine": "sync_duplicate_barcode_issues",
+          "grantee": "anon",
+          "privilege": "EXECUTE",
+          "is_grantable": false
+        },
+        {
+          "routine": "sync_duplicate_barcode_issues",
+          "grantee": "authenticated",
+          "privilege": "EXECUTE",
+          "is_grantable": false
+        },
+        {
+          "routine": "sync_duplicate_barcode_issues",
+          "grantee": "service_role",
+          "privilege": "EXECUTE",
+          "is_grantable": false
+        },
+        {
           "routine": "word_similarity",
           "grantee": "anon",
           "privilege": "EXECUTE",
@@ -5269,6 +5557,26 @@
           "table": "deployed_barcodes",
           "index": "deployed_barcodes_pkey",
           "definition": "CREATE UNIQUE INDEX deployed_barcodes_pkey ON public.deployed_barcodes USING btree (barcode)"
+        },
+        {
+          "table": "duplicate_records",
+          "index": "duplicate_records_barcode_idx",
+          "definition": "CREATE INDEX duplicate_records_barcode_idx ON public.duplicate_records USING btree (source_table, barcode)"
+        },
+        {
+          "table": "duplicate_records",
+          "index": "duplicate_records_country_idx",
+          "definition": "CREATE INDEX duplicate_records_country_idx ON public.duplicate_records USING btree (country)"
+        },
+        {
+          "table": "duplicate_records",
+          "index": "duplicate_records_identity_idx",
+          "definition": "CREATE UNIQUE INDEX duplicate_records_identity_idx ON public.duplicate_records USING btree (source_table, dropped_uniqueid)"
+        },
+        {
+          "table": "duplicate_records",
+          "index": "duplicate_records_pkey",
+          "definition": "CREATE UNIQUE INDEX duplicate_records_pkey ON public.duplicate_records USING btree (id)"
         },
         {
           "table": "enrollee",
