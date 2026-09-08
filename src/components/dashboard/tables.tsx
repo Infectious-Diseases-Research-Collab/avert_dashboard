@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge, fmtNum, fmtPct } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
-import type { DataQualityIssue, DataQualityAuditEntry, Enrollee } from "@/lib/types";
+import type { DataQualityIssue, DataQualityAuditEntry, DuplicateRecord, Enrollee } from "@/lib/types";
 import { verificationState } from "@/lib/metrics";
 import type {
   DemogColumn,
@@ -380,6 +380,13 @@ export function DataQualityTable({
   const [overrides, setOverrides] = useState<Map<number, DataQualityIssue["status"]>>(new Map());
   const [pending, setPending] = useState<Set<number>>(new Set());
 
+  // A duplicate_barcode_* issue's dropped record isn't in the issue row
+  // itself -- it lives in duplicate_records, fetched lazily on expand and
+  // cached per issue id so re-toggling doesn't refetch.
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [dropped, setDropped] = useState<Map<number, DuplicateRecord[]>>(new Map());
+  const [droppedLoading, setDroppedLoading] = useState<Set<number>>(new Set());
+
   const effStatus = (i: DataQualityIssue) => overrides.get(i.id) ?? i.status;
 
   async function changeStatus(id: number, next: "open" | "dismissed") {
@@ -392,6 +399,34 @@ export function DataQualityTable({
       return n;
     });
     if (!error) setOverrides((m) => new Map(m).set(id, next));
+  }
+
+  async function toggleDropped(issue: DataQualityIssue) {
+    if (expanded.has(issue.id)) {
+      setExpanded((s) => {
+        const n = new Set(s);
+        n.delete(issue.id);
+        return n;
+      });
+      return;
+    }
+    setExpanded((s) => new Set(s).add(issue.id));
+    if (dropped.has(issue.id) || !issue.barcode) return;
+    setDroppedLoading((s) => new Set(s).add(issue.id));
+    const sourceTable = issue.check_code.replace(/^duplicate_barcode_/, "");
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("duplicate_records")
+      .select("*")
+      .eq("source_table", sourceTable)
+      .eq("barcode", issue.barcode)
+      .order("recorded_at", { ascending: false });
+    setDroppedLoading((s) => {
+      const n = new Set(s);
+      n.delete(issue.id);
+      return n;
+    });
+    setDropped((m) => new Map(m).set(issue.id, (data as DuplicateRecord[]) ?? []));
   }
 
   const filtered = useMemo(() => {
@@ -476,31 +511,79 @@ export function DataQualityTable({
               {filtered.map((i) => {
                 const st = effStatus(i);
                 const busy = pending.has(i.id);
+                const isDup = i.check_code.startsWith("duplicate_barcode_");
+                const isOpen = expanded.has(i.id);
+                const droppedRows = dropped.get(i.id);
+                const droppedBusy = droppedLoading.has(i.id);
                 return (
-                  <tr key={i.id}>
-                    <Td>
-                      <Badge tone={i.severity}>{i.severity}</Badge>
-                    </Td>
-                    <Td className="font-mono text-xs">{i.check_code}</Td>
-                    <Td>{i.subjid ?? i.barcode ?? "—"}</Td>
-                    <Td>{i.mrc ? (facilityNames.get(i.mrc) ?? i.mrc) : "—"}</Td>
-                    <Td className="max-w-[380px] whitespace-normal">
-                      {locale === "fr" ? i.description_fr : i.description}
-                    </Td>
-                    <Td>
-                      <Badge tone={st}>{t(`dataQuality.${st}`)}</Badge>
-                    </Td>
-                    <Td className="text-xs">{i.detected_at.slice(0, 10)}</Td>
-                    <Td>
-                      <button
-                        onClick={() => changeStatus(i.id, st === "dismissed" ? "open" : "dismissed")}
-                        disabled={busy}
-                        className="text-xs rounded-md border border-[var(--border)] px-2 py-1 hover:bg-[var(--surface-2)] disabled:opacity-50 whitespace-nowrap"
-                      >
-                        {st === "dismissed" ? t("dataQuality.reopen") : t("dataQuality.dismiss")}
-                      </button>
-                    </Td>
-                  </tr>
+                  <Fragment key={i.id}>
+                    <tr>
+                      <Td>
+                        <Badge tone={i.severity}>{i.severity}</Badge>
+                      </Td>
+                      <Td className="font-mono text-xs">{i.check_code}</Td>
+                      <Td>{i.subjid ?? i.barcode ?? "—"}</Td>
+                      <Td>{i.mrc ? (facilityNames.get(i.mrc) ?? i.mrc) : "—"}</Td>
+                      <Td className="max-w-[380px] whitespace-normal">
+                        {locale === "fr" ? i.description_fr : i.description}
+                      </Td>
+                      <Td>
+                        <Badge tone={st}>{t(`dataQuality.${st}`)}</Badge>
+                      </Td>
+                      <Td className="text-xs">{i.detected_at.slice(0, 10)}</Td>
+                      <Td>
+                        <div className="flex gap-2">
+                          {isDup && (
+                            <button
+                              onClick={() => toggleDropped(i)}
+                              className="text-xs rounded-md border border-[var(--border)] px-2 py-1 hover:bg-[var(--surface-2)] whitespace-nowrap"
+                            >
+                              {isOpen ? t("dataQuality.hideDropped") : t("dataQuality.viewDropped")}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => changeStatus(i.id, st === "dismissed" ? "open" : "dismissed")}
+                            disabled={busy}
+                            className="text-xs rounded-md border border-[var(--border)] px-2 py-1 hover:bg-[var(--surface-2)] disabled:opacity-50 whitespace-nowrap"
+                          >
+                            {st === "dismissed" ? t("dataQuality.reopen") : t("dataQuality.dismiss")}
+                          </button>
+                        </div>
+                      </Td>
+                    </tr>
+                    {isDup && isOpen && (
+                      <tr>
+                        <td colSpan={8} className="px-3 py-3 border-b border-[var(--border)] bg-[var(--surface-2)]">
+                          {droppedBusy ? (
+                            <p className="muted text-xs">{t("dataQuality.loading")}</p>
+                          ) : !droppedRows || droppedRows.length === 0 ? (
+                            <p className="muted text-xs">{t("dataQuality.noDroppedFound")}</p>
+                          ) : (
+                            <div className="flex flex-col gap-3">
+                              {droppedRows.map((d) => (
+                                <div key={d.id} className="text-xs">
+                                  <p className="muted mb-1">
+                                    {t("dataQuality.droppedRecord")} {d.dropped_uniqueid ?? "—"} ·{" "}
+                                    {t("dataQuality.keptRecord")} {d.kept_uniqueid ?? "—"} ·{" "}
+                                    {d.recorded_at.slice(0, 10)}
+                                  </p>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-1 font-mono">
+                                    {Object.entries(d.raw)
+                                      .filter(([, v]) => v !== null && v !== "" && v !== undefined)
+                                      .map(([k, v]) => (
+                                        <div key={k} className="truncate">
+                                          <span className="muted">{k}:</span> {String(v)}
+                                        </div>
+                                      ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

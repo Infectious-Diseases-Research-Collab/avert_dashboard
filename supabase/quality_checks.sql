@@ -361,3 +361,77 @@ end;
 $$;
 
 grant execute on function public.refresh_quality_issues() to service_role, authenticated;
+
+-- =====================================================================
+-- sync_duplicate_barcode_issues: see dedupe_on_conflict() in avert_data's
+-- upload_to_supabase.py. vaccination_status/blood_smear upsert on barcode
+-- itself, so when two interviews share a barcode, only the more recently
+-- modified one ever reaches Supabase -- refresh_quality_issues() can only
+-- scan what's actually in the table, so it can never see this collision
+-- after the fact. The Python loader reports it here directly instead, using
+-- the same identity/open/resolve lifecycle as every other check, and also
+-- records every dropped row into duplicate_records so it stays inspectable
+-- from the dashboard instead of only described in a warning email.
+-- =====================================================================
+
+drop function if exists public.sync_duplicate_barcode_issues(text, jsonb);
+
+create or replace function public.sync_duplicate_barcode_issues(p_check_code text, p_table text, p_issues jsonb)
+ returns integer
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $$
+declare
+  n integer;
+begin
+  insert into public.data_quality_issues
+    (country, check_code, severity, barcode, description, description_fr, status, detected_at, resolved_at)
+  select i->>'country', p_check_code, 'warning', i->>'barcode', i->>'description', i->>'description_fr',
+         'open', now(), null
+  from jsonb_array_elements(p_issues) as i
+  on conflict (check_code, coalesce(uniqueid,''), coalesce(barcode,''), coalesce(field,''), coalesce(related_barcode,''))
+  do update set
+    country        = excluded.country,
+    description    = excluded.description,
+    description_fr = excluded.description_fr,
+    status         = 'open',
+    detected_at    = case when data_quality_issues.status = 'resolved'
+                          then now() else data_quality_issues.detected_at end,
+    resolved_at    = null
+  where data_quality_issues.status <> 'dismissed';
+
+  get diagnostics n = row_count;
+
+  -- Resolve a previously reported collision for this check that isn't
+  -- firing this run -- e.g. the source data was corrected (a device
+  -- re-upload with a fixed barcode) so there's nothing left to collapse.
+  update public.data_quality_issues d
+  set status = 'resolved', resolved_at = now()
+  where d.status = 'open'
+    and d.check_code = p_check_code
+    and not exists (
+      select 1 from jsonb_array_elements(p_issues) as i where (i->>'barcode') = d.barcode
+    );
+
+  -- Record every dropped row so a user can inspect what got collapsed.
+  -- Append-only: never deleted, even once the issue above resolves.
+  insert into public.duplicate_records
+    (country, source_table, barcode, dropped_uniqueid, kept_uniqueid, raw, lastmod)
+  select
+    i->>'country', p_table, i->>'barcode',
+    d->>'uniqueid', i->>'kept_uniqueid', (d->'raw'), nullif(d->>'lastmod','')::timestamptz
+  from jsonb_array_elements(p_issues) as i
+  cross join jsonb_array_elements(i->'dropped') as d
+  on conflict (source_table, dropped_uniqueid) do update set
+    barcode       = excluded.barcode,
+    kept_uniqueid = excluded.kept_uniqueid,
+    raw           = excluded.raw,
+    lastmod       = excluded.lastmod,
+    country       = excluded.country;
+
+  return n;
+end;
+$$;
+
+grant execute on function public.sync_duplicate_barcode_issues(text, text, jsonb) to service_role;

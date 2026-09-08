@@ -257,6 +257,32 @@ create unique index if not exists dq_identity_idx on public.data_quality_issues 
 create index if not exists dq_status_idx on public.data_quality_issues (status);
 create index if not exists dq_country_idx on public.data_quality_issues (country);
 
+-- Dropped rows from a vaccination_status/blood_smear barcode collision.
+-- Those two tables upsert on barcode itself (their primary key), so when two
+-- interviews share a barcode, only the more recently modified one ever
+-- reaches Supabase -- the loser is never visible to refresh_quality_issues()
+-- after the fact. sync_duplicate_barcode_issues() (quality_checks.sql)
+-- records it here at upload time, the only point both versions still exist,
+-- so a dashboard user looking at a duplicate_barcode_* issue can inspect
+-- what was actually dropped instead of only reading that it happened.
+-- Append-only: rows are kept even after the issue resolves.
+create table if not exists public.duplicate_records (
+  id               bigint generated always as identity primary key,
+  country          text not null check (country in ('UG','BF')),
+  source_table     text not null,          -- 'vaccination_status' or 'blood_smear'
+  barcode          text not null,          -- the colliding barcode
+  dropped_uniqueid text,                   -- the dropped record's own uniqueid (from raw)
+  kept_uniqueid    text,                   -- the uniqueid of the row that stayed live
+  raw              jsonb not null,         -- the full dropped row, same shape as the source table's raw
+  lastmod          timestamptz,
+  recorded_at      timestamptz not null default now()
+);
+create unique index if not exists duplicate_records_identity_idx
+  on public.duplicate_records (source_table, dropped_uniqueid);
+create index if not exists duplicate_records_barcode_idx
+  on public.duplicate_records (source_table, barcode);
+create index if not exists duplicate_records_country_idx on public.duplicate_records (country);
+
 -- Idempotent migration for existing databases: `create table if not exists`
 -- above is a no-op once the table exists, so evolve the shape explicitly.
 alter table public.data_quality_issues
@@ -591,6 +617,7 @@ alter table public.vaccination_status   enable row level security;
 alter table public.audittrail           enable row level security;
 alter table public.blood_smear          enable row level security;
 alter table public.data_quality_issues  enable row level security;
+alter table public.duplicate_records    enable row level security;
 
 -- allowed_users: a user can read their own row; admins read all.
 drop policy if exists allowed_users_select on public.allowed_users;
@@ -624,6 +651,10 @@ create policy blood_smear_select on public.blood_smear
 
 drop policy if exists dq_select on public.data_quality_issues;
 create policy dq_select on public.data_quality_issues
+  for select to authenticated using (public.auth_can_see(country));
+
+drop policy if exists duplicate_records_select on public.duplicate_records;
+create policy duplicate_records_select on public.duplicate_records
   for select to authenticated using (public.auth_can_see(country));
 
 -- ---------------------------------------------------------------------

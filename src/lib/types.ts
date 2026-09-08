@@ -87,6 +87,23 @@ export interface DataQualityIssue {
   dismissed_by?: string | null;
 }
 
+/** A row dropped by upload_to_supabase.py's dedupe_on_conflict() when two
+ *  vaccination_status/blood_smear interviews collided on the same barcode
+ *  (that table's primary key, so only one of them can ever be live). Kept
+ *  here, append-only, so the record that got dropped is inspectable from a
+ *  duplicate_barcode_* Data Quality issue instead of only described in text. */
+export interface DuplicateRecord {
+  id: number;
+  country: Country;
+  source_table: string;
+  barcode: string;
+  dropped_uniqueid: string | null;
+  kept_uniqueid: string | null;
+  raw: Record<string, unknown>;
+  lastmod: string | null;
+  recorded_at: string;
+}
+
 export interface DataQualityAuditEntry {
   id: number;
   issue_id: number;
