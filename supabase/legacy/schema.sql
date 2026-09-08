@@ -1,6 +1,16 @@
 -- =====================================================================
+-- SUPERSEDED — kept for its rationale comments, not run or edited anymore.
+--
+-- The schema is now tracked via Supabase CLI migrations
+-- (supabase/migrations/, applied with `supabase db push`); the remote
+-- project's migration history is the source of truth for what's actually
+-- deployed. This file was the hand-authored, manually-pasted-into-the-
+-- SQL-editor version that came before that -- it's what drifted out of
+-- sync with the live database when a change (sync_duplicate_barcode_issues)
+-- was deployed from a one-off file in a different repo and never folded
+-- back in here. See Instructions.md for the current workflow.
+--
 -- AVERT R21 Dashboard — Supabase schema, RLS, auth allowlist, helpers
--- Apply in the Supabase SQL editor (or `supabase db push`).
 -- Idempotent-ish: safe to re-run (uses IF NOT EXISTS / CREATE OR REPLACE).
 -- =====================================================================
 

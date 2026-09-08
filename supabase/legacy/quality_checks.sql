@@ -1,4 +1,14 @@
 -- =====================================================================
+-- SUPERSEDED — kept for its rationale comments, not run or edited anymore.
+--
+-- The schema is now tracked via Supabase CLI migrations
+-- (supabase/migrations/, applied with `supabase db push`); the remote
+-- project's migration history is the source of truth for what's actually
+-- deployed. See Instructions.md for the current workflow, and
+-- supabase/legacy/schema.sql for the fuller story on why this changed.
+-- =====================================================================
+
+-- =====================================================================
 -- Data-quality checks.
 --
 -- Ported from the study's actual post-hoc QA script ("01a Survey data
