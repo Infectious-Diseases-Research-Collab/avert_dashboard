@@ -1,7 +1,12 @@
 -- =====================================================================
 -- Seed: study health facilities (from the BF/UG facility Excel lists).
--- mrc is stored as text; Uganda uses plain integers, Burkina uses
--- zero-padded 3-digit codes. Re-runnable (upsert on primary key).
+-- mrc is stored as text, zero-padded to 3 digits for both countries --
+-- matches what enrollee.mrc actually carries (confirmed against live
+-- data). Re-runnable (upsert on primary key (country, mrc)), which is
+-- exactly why a wrong-width code here is dangerous: '62' unpadded is a
+-- DIFFERENT primary key from '062', so upserting it doesn't correct the
+-- real row, it silently creates a permanent duplicate next to it -- as
+-- happened with Kigandalo HCIV below prior to this fix.
 -- =====================================================================
 
 insert into public.facilities (country, mrc, name, district) values
@@ -10,7 +15,7 @@ insert into public.facilities (country, mrc, name, district) values
   ('UG','032','Kitgum Matidi HCIII','Kitgum'),
   ('UG','036','Otwal HCIII','Oyam'),
   ('UG','056','Nawaikoke HCIII','Kaliro'),
-  ('UG','62','Kigandalo HCIV','Mayuge'),
+  ('UG','062','Kigandalo HCIV','Mayuge'),
   ('UG','069','Orum HCIV','Otuke'),
   ('UG','071','Nadunget HCIII','Moroto'),
   ('UG','079','Rwenyawawa HCIII','Kikuube')
