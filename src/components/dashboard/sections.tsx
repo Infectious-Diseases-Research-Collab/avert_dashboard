@@ -53,6 +53,7 @@ import {
   SITE_DAILY_TARGETS,
   type TestType,
   type AgeDistributionBy,
+  type TrendGranularity,
 } from "@/lib/metrics";
 import type { Country, Enrollee, Facility, DataQualityIssue, DataQualityAuditEntry } from "@/lib/types";
 
@@ -90,7 +91,11 @@ export function OverviewSection({
 }: SectionProps) {
   const t = useTranslations();
   const kpis = useMemo(() => computeKpis(enrollees, testType), [enrollees, testType]);
-  const granularity = useMemo(() => pickTrendGranularity(enrollees), [enrollees]);
+  const autoGranularity = useMemo(() => pickTrendGranularity(enrollees), [enrollees]);
+  // This deliberately lives only in component state: a fresh page load always
+  // returns to Auto, while staff can still inspect a longer period day by day.
+  const [manualGranularity, setManualGranularity] = useState<TrendGranularity | null>(null);
+  const granularity = manualGranularity ?? autoGranularity;
   const granularityBadge = (
     <span className="muted text-xs rounded-full border border-[var(--border)] px-2 py-0.5 whitespace-nowrap">
       {t(granularity === "day" ? "charts.dailyView" : "charts.weeklyView")}
@@ -102,7 +107,7 @@ export function OverviewSection({
   const startKey = useMemo(() => studyStartKey(enrollees), [enrollees]);
   const endKey = useMemo(() => studyEndKey(enrollees), [enrollees]);
 
-  const [trendMode, setTrendMode] = useState<"daily" | "cumulative" | "positivity">("daily");
+  const [trendMode, setTrendMode] = useState<"enrollment" | "cumulative" | "positivity">("enrollment");
 
   // When the facility filter narrows to a single site, the visible data is one
   // site's, so it has to be judged against the per-site pace (1.4/1.9 per day).
@@ -311,8 +316,26 @@ export function OverviewSection({
             )}
             action={
               <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="inline-flex items-center gap-1.5 text-sm whitespace-nowrap">
+                  <span className="muted text-xs">{t("charts.grouping")}</span>
+                  <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden">
+                    {(["day", "week"] as const).map((value) => (
+                      <button
+                        key={value}
+                        onClick={() => setManualGranularity(value)}
+                        className={`px-3 py-1.5 ${
+                          granularity === value
+                            ? "bg-[var(--primary)] text-[var(--primary-fg)]"
+                            : "hover:bg-[var(--surface-2)]"
+                        }`}
+                      >
+                        {t(value === "day" ? "charts.daily" : "charts.weekly")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="inline-flex rounded-lg border border-[var(--border)] overflow-hidden text-sm">
-                  {(["daily", "cumulative", "positivity"] as const).map((m) => (
+                  {(["enrollment", "cumulative", "positivity"] as const).map((m) => (
                     <button
                       key={m}
                       onClick={() => setTrendMode(m)}
@@ -323,8 +346,8 @@ export function OverviewSection({
                       }`}
                     >
                       {t(
-                        m === "daily"
-                          ? "charts.modeDaily"
+                        m === "enrollment"
+                          ? "charts.modeEnrollment"
                           : m === "cumulative"
                             ? "charts.modeCumulative"
                             : "charts.modePositivity",
@@ -337,7 +360,7 @@ export function OverviewSection({
             }
           />
 
-          {trendMode === "daily" && (
+          {trendMode === "enrollment" && (
             <MultiLine
               data={dailyWithTargets}
               xKey="week"
