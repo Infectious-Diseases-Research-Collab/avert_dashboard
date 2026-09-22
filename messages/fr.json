@@ -17,8 +17,7 @@
   "countries": {
     "UG": "Ouganda",
     "BF": "Burkina Faso",
-    "BOTH": "Les deux pays",
-    "all": "Tous les pays"
+    "BOTH": "Les deux pays"
   },
   "filters": {
     "country": "Pays",
@@ -60,10 +59,7 @@
     "daily": "Quotidien",
     "weekly": "Hebdomadaire",
     "positivitySeries": "Positivité",
-    "target3500": "Objectif (3500)",
-    "target5000": "Objectif (5000)",
-    "targetSiteLow": "Objectif ({rate}/jour)",
-    "targetSiteHigh": "Objectif ({rate}/jour)",
+    "targetRate": "Objectif ({rate}/jour)",
     "enrollmentTrendsBySiteSubCumulative": "Inclus, cas et témoins cumulés par site, comparés au rythme cible par site",
     "enrollmentTrendsBySiteSubPositivity": "Cas en proportion des participants inclus, par période, par site",
     "dailyView": "Vue quotidienne",
@@ -99,7 +95,6 @@
     "coverageByDay": "Couverture vaccinale par jour",
     "ageAtVaccination": "Âge à la vaccination",
     "ageAtVaccinationSub": "Mois à chaque dose (lignes de référence : {lines})",
-    "ageAtVaccinationSubAll": "Mois à chaque dose — le calendrier vaccinal diffère selon le pays ; sélectionnez un pays pour afficher son calendrier de référence",
     "timeSinceLastDose": "Temps depuis la dernière dose (semaines)",
     "timeBetweenDoses": "Temps entre les doses (semaines)",
     "concordanceOverTime": "Concordance TDR–microscopie dans le temps",
@@ -221,7 +216,7 @@
   },
   "map": {
     "title": "Progression par site",
-    "subtitle": "Cas cumulés comparés à un objectif de 1,4 cas/jour par site",
+    "subtitle": "Cas cumulés comparés à un objectif de {rate} cas/jour par site",
     "onTrack": "Dans les temps (≥90 %)",
     "near": "Proche (60–89 %)",
     "behind": "En retard (<60 %)",

@@ -1,4 +1,4 @@
-import type { Enrollee } from "@/lib/types";
+import type { Country, Enrollee } from "@/lib/types";
 
 export type TestType = "rdt" | "microscopy";
 
@@ -323,13 +323,36 @@ export function enrollmentTrendsBySite(
 // Cumulative trends, enrollment targets, and test positivity
 // ---------------------------------------------------------------------------
 
+export interface CountryTarget {
+  /** Flat target shown on the daily-view (non-cumulative) chart. */
+  perDay: number;
+  /** Flat target shown on the weekly-view (non-cumulative) chart. */
+  perWeek: number;
+  /** Rate (per calendar day) the cumulative target line slopes upward at. */
+  cumulativeRatePerDay: number;
+  /** "data" anchors the cumulative line to the earliest enrollment day
+   *  present in the visible data; a fixed ISO date anchors it to that
+   *  calendar date regardless of when data starts. */
+  anchor: "data" | string;
+}
+
 /**
- * Study-wide daily enrollment targets (Burkina Faso): 16.4/day reaches 3500
- * enrolled and 23.4/day reaches 5000 over the same ~213-day enrollment period.
+ * Study-wide daily enrollment targets. Burkina Faso: 16.4/day reaches 3500
+ * enrolled over the ~213-day enrollment period, counted from the first
+ * enrollment in the data. Uganda enrolls 5 days/week (21.8/day, 109.3/week);
+ * its cumulative line is anchored to 2026-09-07 (when every site went live)
+ * rather than the data, and slopes at the weekly rate spread over all 7
+ * calendar days (109.3/7/day) so it rises smoothly across weekends.
  */
-export const DAILY_TARGETS = { low: 16.4, high: 23.4 } as const;
-/** Per-site daily enrollment targets. 12 sites x 1.4 ~ 16.4; x 1.9 ~ 23.4. */
-export const SITE_DAILY_TARGETS = { low: 1.4, high: 1.9 } as const;
+export const DAILY_TARGETS: Record<Country, CountryTarget> = {
+  BF: { perDay: 16.4, perWeek: 16.4 * 7, cumulativeRatePerDay: 16.4, anchor: "data" },
+  UG: { perDay: 21.8, perWeek: 109.3, cumulativeRatePerDay: 109.3 / 7, anchor: "2026-09-07" },
+};
+/** Per-site daily enrollment targets. Burkina Faso: 12 sites x 1.4 ~ 16.4. */
+export const SITE_DAILY_TARGETS: Record<Country, CountryTarget> = {
+  BF: { perDay: 1.4, perWeek: 1.4 * 7, cumulativeRatePerDay: 1.4, anchor: "data" },
+  UG: { perDay: 2.4, perWeek: 12.1, cumulativeRatePerDay: 12.1 / 7, anchor: "2026-09-07" },
+};
 
 /** Earliest enrollment day present in the data — day 1 of the study. */
 export function studyStartKey(screened: Enrollee[]): string | null {
@@ -372,6 +395,31 @@ export function studyDayIndex(
     end = weekEnd.getTime() > maxData.getTime() ? maxData : weekEnd;
   }
   return Math.max(1, Math.round(daysBetween(end, start)) + 1);
+}
+
+/**
+ * Calendar days elapsed between a fixed anchor date and the END of a bucket,
+ * 0-based (the anchor date itself = 0 days elapsed). Weekly buckets are
+ * credited through their last day, clamped to the last day that actually has
+ * data so the final partial week doesn't inflate its target. Sibling of
+ * `studyDayIndex`, for targets anchored to a fixed date instead of the data.
+ */
+export function daysSinceAnchor(
+  bucketKey: string,
+  anchorKey: string,
+  granularity: TrendGranularity,
+  maxDataKey: string,
+): number {
+  const anchor = parseDate(anchorKey);
+  const bucket = parseDate(bucketKey);
+  const maxData = parseDate(maxDataKey);
+  if (!anchor || !bucket || !maxData) return 0;
+  let end = bucket;
+  if (granularity === "week") {
+    const weekEnd = new Date(bucket.getTime() + 6 * MS_DAY);
+    end = weekEnd.getTime() > maxData.getTime() ? maxData : weekEnd;
+  }
+  return Math.max(0, Math.round(daysBetween(end, anchor)));
 }
 
 /** Running sum of the named columns, leaving other fields untouched. */
@@ -498,31 +546,35 @@ export function positivityBySite(trends: TrendsBySite): Record<string, number | 
 }
 
 /**
- * Add TargetLow/TargetHigh columns to a bucketed row-set. Flat targets scale a
- * daily rate by the bucket width (a weekly bucket's target is 7x the daily
- * rate); cumulative targets are rate x days elapsed, so they slope upward.
+ * Add a Target column to a bucketed row-set. Flat (non-cumulative) targets
+ * use the country's per-day or per-week rate directly (Uganda's weekly rate
+ * isn't just its daily rate x7, since it only enrolls 5 days/week); cumulative
+ * targets are `cumulativeRatePerDay x days elapsed`, so they slope upward —
+ * counted from the earliest enrollment day in the data ("data" anchor) or
+ * from a fixed calendar date, per `target.anchor`.
  */
 export function withTargetColumns<T extends object>(
   rows: T[],
-  targets: { low: number; high: number },
+  target: CountryTarget,
   granularity: TrendGranularity,
   startKey: string | null,
   maxDataKey: string | null,
   cumulative: boolean,
-): (T & { TargetLow: number; TargetHigh: number })[] {
-  const perBucket = granularity === "week" ? 7 : 1;
+): (T & { Target: number })[] {
+  if (!cumulative) {
+    const raw = granularity === "week" ? target.perWeek : target.perDay;
+    const flat = Math.round(raw * 10) / 10;
+    return rows.map((row) => ({ ...row, Target: flat }));
+  }
+  const anchorKey = target.anchor === "data" ? startKey : target.anchor;
   return rows.map((row) => {
-    if (!cumulative) {
-      return { ...row, TargetLow: targets.low * perBucket, TargetHigh: targets.high * perBucket };
-    }
+    if (!anchorKey || !maxDataKey) return { ...row, Target: 0 };
     const week = String((row as Record<string, unknown>).week ?? "");
-    const day =
-      startKey && maxDataKey ? studyDayIndex(week, startKey, granularity, maxDataKey) : 0;
-    return {
-      ...row,
-      TargetLow: Math.round(targets.low * day * 10) / 10,
-      TargetHigh: Math.round(targets.high * day * 10) / 10,
-    };
+    const days =
+      target.anchor === "data"
+        ? studyDayIndex(week, anchorKey, granularity, maxDataKey)
+        : daysSinceAnchor(week, anchorKey, granularity, maxDataKey);
+    return { ...row, Target: Math.round(target.cumulativeRatePerDay * days * 10) / 10 };
   });
 }
 
@@ -542,19 +594,25 @@ export interface SiteProgress {
  * the map — per the study team: "colored by how far or close the current
  * cumulative enrollment (of cases) is to the target ... assuming we want to
  * enroll [1.4] cases per day per site." Only facilities with coordinates are
- * returned.
+ * returned. Uses the same day-counting rule as the chart's cumulative target
+ * line (data-driven for Burkina Faso, anchored to a fixed date for Uganda),
+ * evaluated at the last day of visible data.
  */
 export function siteProgress(
   screened: Enrollee[],
   facilities: { mrc: string; name: string; latitude?: number | null; longitude?: number | null }[],
   testType: TestType,
-  ratePerDay: number,
+  target: CountryTarget,
 ): SiteProgress[] {
   const start = studyStartKey(screened);
   const end = studyEndKey(screened);
-  const startD = parseDate(start);
-  const endD = parseDate(end);
-  const days = startD && endD ? Math.max(1, Math.round(daysBetween(endD, startD)) + 1) : 0;
+  const anchorKey = target.anchor === "data" ? start : target.anchor;
+  const days =
+    end && anchorKey
+      ? target.anchor === "data"
+        ? studyDayIndex(end, anchorKey, "day", end)
+        : daysSinceAnchor(end, anchorKey, "day", end)
+      : 0;
 
   const counts = new Map<string, number>();
   for (const e of screened.filter(isEnrolled)) {
@@ -563,7 +621,7 @@ export function siteProgress(
     counts.set(mrc, (counts.get(mrc) ?? 0) + 1);
   }
 
-  const target = ratePerDay * days;
+  const targetValue = target.cumulativeRatePerDay * days;
   return facilities
     .filter((f) => typeof f.latitude === "number" && typeof f.longitude === "number")
     .map((f) => {
@@ -574,8 +632,8 @@ export function siteProgress(
         latitude: f.latitude as number,
         longitude: f.longitude as number,
         cases,
-        target,
-        ratio: target > 0 ? cases / target : 0,
+        target: targetValue,
+        ratio: targetValue > 0 ? cases / targetValue : 0,
       };
     });
 }

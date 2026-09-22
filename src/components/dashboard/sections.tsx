@@ -60,8 +60,8 @@ import type { Country, Enrollee, Facility, DataQualityIssue, DataQualityAuditEnt
 interface SectionProps {
   enrollees: Enrollee[];
   testType: TestType;
-  /** Current country filter; "ALL" when both countries are in view. */
-  country: Country | "ALL";
+  /** Current country filter. */
+  country: Country;
   /** Facilities visible under the current country filter (carries coordinates). */
   facilities: Facility[];
   facilityNames: Map<string, string>;
@@ -83,6 +83,7 @@ interface SectionProps {
 export function OverviewSection({
   enrollees,
   testType,
+  country,
   facilities,
   facilityNames,
   villageNames,
@@ -110,15 +111,10 @@ export function OverviewSection({
   const [trendMode, setTrendMode] = useState<"enrollment" | "cumulative" | "positivity">("enrollment");
 
   // When the facility filter narrows to a single site, the visible data is one
-  // site's, so it has to be judged against the per-site pace (1.4/1.9 per day).
-  // Holding it to the study-wide 16.4/23.4 would show every site as far behind.
-  const mainTargets = siteSelected ? SITE_DAILY_TARGETS : DAILY_TARGETS;
-  const targetLowName = siteSelected
-    ? t("charts.targetSiteLow", { rate: SITE_DAILY_TARGETS.low })
-    : t("charts.target3500");
-  const targetHighName = siteSelected
-    ? t("charts.targetSiteHigh", { rate: SITE_DAILY_TARGETS.high })
-    : t("charts.target5000");
+  // site's, so it has to be judged against the per-site pace, not the
+  // study-wide one (which would show every site as far behind).
+  const mainTargets = (siteSelected ? SITE_DAILY_TARGETS : DAILY_TARGETS)[country];
+  const targetName = t("charts.targetRate", { rate: mainTargets.perDay });
 
   const weekly = useMemo(() => weeklyTrends(enrollees, granularity), [enrollees, granularity]);
   const hasMicro = weekly.some((w) => w["Micro+"] + w["Micro-"] > 0);
@@ -143,10 +139,10 @@ export function OverviewSection({
     [enrollees, testType, granularity],
   );
 
-  // Map: cumulative cases per site vs the 1.4/day-per-site target to date.
+  // Map: cumulative cases per site vs the per-site target to date.
   const progress = useMemo(
-    () => siteProgress(enrollees, facilities, testType, SITE_DAILY_TARGETS.low),
-    [enrollees, facilities, testType],
+    () => siteProgress(enrollees, facilities, testType, SITE_DAILY_TARGETS[country]),
+    [enrollees, facilities, testType, country],
   );
 
   const facilityCounts = useMemo(
@@ -226,16 +222,16 @@ export function OverviewSection({
     () =>
       withTargetColumns(
         toCumulative(trendsBySite.enrolled, siteNames),
-        SITE_DAILY_TARGETS,
+        SITE_DAILY_TARGETS[country],
         granularity,
         startKey,
         endKey,
         true,
       ),
-    [trendsBySite, siteNames, granularity, startKey, endKey],
+    [trendsBySite, siteNames, granularity, startKey, endKey, country],
   );
   const cumulativeMax = useMemo(
-    () => seriesMax(cumulativeBySite, [...siteNames, "TargetHigh"]),
+    () => seriesMax(cumulativeBySite, [...siteNames, "Target"]),
     [cumulativeBySite, siteNames],
   );
 
@@ -257,8 +253,7 @@ export function OverviewSection({
         rows: cumulativeBySite as unknown as Record<string, unknown>[],
         series: [
           ...siteSeries,
-          { key: "TargetLow", name: t("charts.targetSiteLow", { rate: SITE_DAILY_TARGETS.low }), color: PALETTE.green, dashed: true },
-          { key: "TargetHigh", name: t("charts.targetSiteHigh", { rate: SITE_DAILY_TARGETS.high }), color: PALETTE.orange, dashed: true },
+          { key: "Target", name: t("charts.targetRate", { rate: SITE_DAILY_TARGETS[country].perDay }), color: PALETTE.green, dashed: true },
         ],
         domainMax: cumulativeMax,
         percent: false,
@@ -273,7 +268,7 @@ export function OverviewSection({
       };
     }
     return null;
-  }, [siteMetric, cumulativeBySite, cumulativeMax, positivityBySiteRows, siteSeries, t]);
+  }, [siteMetric, cumulativeBySite, cumulativeMax, positivityBySiteRows, siteSeries, t, country]);
   const villages = useMemo(
     () => enrollmentByVillage(enrollees, testType, villageNames),
     [enrollees, testType, villageNames],
@@ -372,13 +367,11 @@ export function OverviewSection({
                 { key: "RDT-", name: t("charts.rdtNegative"), color: PALETTE.neg },
                 ...(hasMicro
                   ? [
-                      // Not PALETTE.orange — that's TargetHigh on this same chart.
                       { key: "Micro+", name: t("charts.microPositive"), color: PALETTE.purple },
                       { key: "Micro-", name: t("charts.microNegative"), color: PALETTE.brown },
                     ]
                   : []),
-                { key: "TargetLow", name: targetLowName, color: PALETTE.green, dashed: true },
-                { key: "TargetHigh", name: targetHighName, color: PALETTE.orange, dashed: true },
+                { key: "Target", name: targetName, color: PALETTE.green, dashed: true },
               ]}
             />
           )}
@@ -392,8 +385,7 @@ export function OverviewSection({
                 { key: "Enrolled", name: t("charts.enrolledSeries"), color: PALETTE.primary },
                 { key: "Cases", name: t("charts.casesSeries"), color: PALETTE.pos },
                 { key: "Controls", name: t("charts.controlsSeries"), color: PALETTE.neg },
-                { key: "TargetLow", name: targetLowName, color: PALETTE.green, dashed: true },
-                { key: "TargetHigh", name: targetHighName, color: PALETTE.orange, dashed: true },
+                { key: "Target", name: targetName, color: PALETTE.green, dashed: true },
               ]}
             />
           )}
@@ -412,7 +404,10 @@ export function OverviewSection({
         </Card>
 
         <Card>
-          <SectionTitle title={t("map.title")} subtitle={t("map.subtitle")} />
+          <SectionTitle
+            title={t("map.title")}
+            subtitle={t("map.subtitle", { rate: SITE_DAILY_TARGETS[country].perDay })}
+          />
           <SiteMap sites={progress} highlightMrc={selectedMrc} />
         </Card>
       </div>
@@ -584,8 +579,7 @@ export function OverviewSection({
                           Enrolled: (r[site.name] as number) ?? 0,
                           Cases: (cumulativeCasesBySite[i]?.[site.name] as number) ?? 0,
                           Controls: (cumulativeControlsBySite[i]?.[site.name] as number) ?? 0,
-                          TargetLow: r.TargetLow,
-                          TargetHigh: r.TargetHigh,
+                          Target: r.Target,
                         }))
                       : null;
                   const positivityRows =
@@ -599,8 +593,7 @@ export function OverviewSection({
                     { key: "Enrolled", name: t("charts.enrolledSeries"), color: PALETTE.primary },
                     { key: "Cases", name: t("charts.casesSeries"), color: PALETTE.pos },
                     { key: "Controls", name: t("charts.controlsSeries"), color: PALETTE.neg },
-                    { key: "TargetLow", name: t("charts.targetSiteLow", { rate: SITE_DAILY_TARGETS.low }), color: PALETTE.green, dashed: true },
-                    { key: "TargetHigh", name: t("charts.targetSiteHigh", { rate: SITE_DAILY_TARGETS.high }), color: PALETTE.orange, dashed: true },
+                    { key: "Target", name: t("charts.targetRate", { rate: SITE_DAILY_TARGETS[country].perDay }), color: PALETTE.green, dashed: true },
                   ];
                   const finalCumulative = cumulativeRows?.length ? cumulativeRows[cumulativeRows.length - 1] : null;
                   const lastPositivity = positivityRows?.length
@@ -675,8 +668,7 @@ export function OverviewSection({
                     { key: "Enrolled", name: t("charts.enrolledSeries"), color: PALETTE.primary },
                     { key: "Cases", name: t("charts.casesSeries"), color: PALETTE.pos },
                     { key: "Controls", name: t("charts.controlsSeries"), color: PALETTE.neg },
-                    { key: "TargetLow", name: t("charts.targetSiteLow", { rate: SITE_DAILY_TARGETS.low }), color: PALETTE.green },
-                    { key: "TargetHigh", name: t("charts.targetSiteHigh", { rate: SITE_DAILY_TARGETS.high }), color: PALETTE.orange },
+                    { key: "Target", name: t("charts.targetRate", { rate: SITE_DAILY_TARGETS[country].perDay }), color: PALETTE.green },
                   ]}
                 />
               )}
@@ -787,9 +779,7 @@ export function VaccineCoverageSection({ enrollees, country }: SectionProps) {
   const coverage = useMemo(() => coverageByWeek(enrollees, granularity), [enrollees, granularity]);
   const covByAge = useMemo(() => coverageByAge(enrollees), [enrollees]);
   const ageVax = useMemo(() => ageAtVaccination(enrollees), [enrollees]);
-  // Null when both countries are in view — the schedules differ, so no single
-  // set of reference lines is correct.
-  const schedule = country === "ALL" ? null : DOSE_SCHEDULE[country];
+  const schedule = DOSE_SCHEDULE[country];
   const sinceLast = useMemo(() => timeSinceLastDose(enrollees), [enrollees]);
   const between = useMemo(() => timeBetweenDoses(enrollees), [enrollees]);
 
@@ -850,16 +840,12 @@ export function VaccineCoverageSection({ enrollees, country }: SectionProps) {
       <Card>
         <SectionTitle
           title={t("charts.ageAtVaccination")}
-          subtitle={
-            schedule
-              ? t("charts.ageAtVaccinationSub", { lines: schedule.join(", ") })
-              : t("charts.ageAtVaccinationSubAll")
-          }
+          subtitle={t("charts.ageAtVaccinationSub", { lines: schedule.join(", ") })}
         />
         <MultiBar
           data={ageVax as unknown as Record<string, unknown>[]}
           xKey="x"
-          refLines={(schedule ?? []).map((x) => ({ x, label: `${x}` }))}
+          refLines={schedule.map((x) => ({ x, label: `${x}` }))}
           series={[
             { key: "Dose 1", name: t("charts.dose1"), color: PALETTE.primary },
             { key: "Dose 2", name: t("charts.dose2"), color: PALETTE.pos },

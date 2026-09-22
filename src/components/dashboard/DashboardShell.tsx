@@ -82,8 +82,8 @@ export function DashboardShell({
   const supabase = useMemo(() => createClient(), []);
 
   const [section, setSection] = useState<SectionKey>("overview");
-  const [country, setCountry] = useState<Country | "ALL">(
-    canSwitchCountry ? "ALL" : (profile.country_access as Country),
+  const [country, setCountry] = useState<Country>(
+    canSwitchCountry ? "UG" : (profile.country_access as Country),
   );
   const [mrc, setMrc] = useState<string>("all");
   const [from, setFrom] = useState<string>(daysAgoISO(180));
@@ -100,7 +100,7 @@ export function DashboardShell({
 
   // Facilities available for the current country filter.
   const facilityOptions = useMemo(
-    () => facilities.filter((f) => country === "ALL" || f.country === country),
+    () => facilities.filter((f) => f.country === country),
     [facilities, country],
   );
   const facilityNames = useMemo(
@@ -111,7 +111,7 @@ export function DashboardShell({
 
   const filtered = useMemo(() => {
     return enrollees.filter((e) => {
-      if (country !== "ALL" && e.country !== country) return false;
+      if (e.country !== country) return false;
       if (mrc !== "all" && e.mrc !== mrc) return false;
       if (e.startdate) {
         if (from && e.startdate < from) return false;
@@ -126,17 +126,17 @@ export function DashboardShell({
   }, [enrollees, country, mrc, from, to, dobFrom, dobTo]);
 
   const filteredIssues = useMemo(
-    () => issues.filter((i) => (country === "ALL" ? true : i.country === country)),
+    () => issues.filter((i) => i.country === country),
     [issues, country],
   );
   const filteredAuditLog = useMemo(
-    () => auditLog.filter((a) => (country === "ALL" ? true : a.country === country)),
+    () => auditLog.filter((a) => a.country === country),
     [auditLog, country],
   );
 
   const downloadQuery = useMemo(() => {
     const p = new URLSearchParams();
-    if (country !== "ALL") p.set("country", country);
+    p.set("country", country);
     if (mrc !== "all") p.set("mrc", mrc);
     if (from) p.set("from", from);
     if (to) p.set("to", to);
@@ -242,12 +242,11 @@ export function DashboardShell({
               <select
                 value={country}
                 onChange={(e) => {
-                  setCountry(e.target.value as Country | "ALL");
+                  setCountry(e.target.value as Country);
                   setMrc("all");
                 }}
                 className="select"
               >
-                <option value="ALL">{t("countries.all")}</option>
                 <option value="UG">{t("countries.UG")}</option>
                 <option value="BF">{t("countries.BF")}</option>
               </select>

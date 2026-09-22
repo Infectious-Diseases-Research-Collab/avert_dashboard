@@ -17,8 +17,7 @@
   "countries": {
     "UG": "Uganda",
     "BF": "Burkina Faso",
-    "BOTH": "Both countries",
-    "all": "All countries"
+    "BOTH": "Both countries"
   },
   "filters": {
     "country": "Country",
@@ -60,10 +59,7 @@
     "daily": "Daily",
     "weekly": "Weekly",
     "positivitySeries": "Positivity",
-    "target3500": "Target (3500)",
-    "target5000": "Target (5000)",
-    "targetSiteLow": "Target ({rate}/day)",
-    "targetSiteHigh": "Target ({rate}/day)",
+    "targetRate": "Target ({rate}/day)",
     "enrollmentTrendsBySiteSubCumulative": "Cumulative enrolled, cases and controls per site, against the per-site target pace",
     "enrollmentTrendsBySiteSubPositivity": "Cases as a share of enrolled, per period, per site",
     "dailyView": "Daily view",
@@ -99,7 +95,6 @@
     "coverageByDay": "Vaccination coverage by day",
     "ageAtVaccination": "Age at vaccination",
     "ageAtVaccinationSub": "Months at each dose (reference lines: {lines})",
-    "ageAtVaccinationSubAll": "Months at each dose — the dose schedule differs by country; select a country to show its reference schedule",
     "timeSinceLastDose": "Time since last dose (weeks)",
     "timeBetweenDoses": "Time between doses (weeks)",
     "concordanceOverTime": "RDT–microscopy concordance over time",
@@ -221,7 +216,7 @@
   },
   "map": {
     "title": "Site progress",
-    "subtitle": "Cumulative cases against a 1.4 cases/day per-site target",
+    "subtitle": "Cumulative cases against a {rate} cases/day per-site target",
     "onTrack": "On track (≥90%)",
     "near": "Near (60–89%)",
     "behind": "Behind (<60%)",
