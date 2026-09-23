@@ -90,8 +90,9 @@ export function DashboardShell({
   const [to, setTo] = useState<string>(new Date().toISOString().slice(0, 10));
   // Date-of-birth window, empty by default (no restriction). Separate from the
   // enrollment date range above: this narrows to a birth cohort, e.g. only
-  // children born on or after 2025-01-01.
-  const [dobFrom, setDobFrom] = useState<string>("");
+  // children born on or after 2025-01-01. Burkina Faso data is only
+  // meaningful from 2025-01-01 onward, so default dobFrom accordingly.
+  const [dobFrom, setDobFrom] = useState<string>(country === "BF" ? "2025-01-01" : "");
   const [dobTo, setDobTo] = useState<string>("");
   const [testType, setTestType] = useState<TestType>("rdt");
 
@@ -242,8 +243,10 @@ export function DashboardShell({
               <select
                 value={country}
                 onChange={(e) => {
-                  setCountry(e.target.value as Country);
+                  const next = e.target.value as Country;
+                  setCountry(next);
                   setMrc("all");
+                  setDobFrom(next === "BF" ? "2025-01-01" : "");
                 }}
                 className="select"
               >
