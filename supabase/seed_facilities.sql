@@ -35,13 +35,25 @@ insert into public.facilities (country, mrc, name, district, region, transmissio
   ('BF','009','Déguélin','Karangasso-Vigué','Hauts-Bassins','Forte'),
   ('BF','010','Boromo','Boromo','Boucle Mouhoun','Forte'),
   ('BF','011','Ouahabou','Boromo','Boucle Mouhoun','Forte'),
-  ('BF','013','Boromo Urbain 2','Boromo','Boucle Mouhoun','Forte')
+  ('BF','013','Boromo Urbain 2','Boromo','Boucle Mouhoun','Forte'),
+  ('BF','014','CM de Bama','Dandé','Guriko',null),
+  ('BF','015','CSPS de Dandé','Dandé','Guriko',null),
+  ('BF','016','CSPS Dougoumato 2','Houndé','Guriko',null),
+  ('BF','017','CSPS Secteur 02','Houndé','Guriko',null),
+  ('BF','018','CSPS de Klesso','Karangasso-Vigué','Guriko',null),
+  ('BF','019','CSPS de Dan','Karangasso-Vigué','Guriko',null),
+  ('BF','020','CSPS de Yéguéré','Karangasso-Vigué','Guriko',null),
+  ('BF','021','CM de Fara','Boromo','Bankui',null),
+  ('BF','022','CSPS de Pâ','Boromo','Bankui',null),
+  ('BF','023','CSPS Urbain de Zorgho','Zorgho','Oubri',null),
+  ('BF','024','CM de Mogtédo','Zorgho','Oubri',null),
+  ('BF','025','CSPS de Sapaga','Zorgho','Oubri',null)
 on conflict (country, mrc) do update
   set name = excluded.name, district = excluded.district,
       region = excluded.region, transmission_zone = excluded.transmission_zone;
 
 -- ---------------------------------------------------------------------
--- Site coordinates (Burkina Faso), from Coordonnées_Sites_etude_R21.xlsx.
+-- Site coordinates (Burkina Faso), from Coordonnées_Sites_etude_R21.xlsx (001-013) and later additions (014-025).
 -- Keyed on mrc, NOT on name: the source spreadsheet spells four sites
 -- differently (Bereba / Karangasso Vigue / Deguelin / Boromo), so matching
 -- by name would silently miss them. The map omits any site whose
@@ -62,7 +74,19 @@ update public.facilities as f
     ('010', 11.743942,   -2.934045),
     ('011', 11.694677,   -3.098722),
     ('012', 12.040485,   -0.763302),
-    ('013', 11.75151,    -2.93383)
+    ('013', 11.75151,    -2.93383),
+    ('014', 11.371611,  -4.392777),
+    ('015', 11.576555,  -4.558027),
+    ('016', 11.210545,  -3.808607),
+    ('017', 11.500417,  -3.533979),
+    ('018', 10.941596,  -3.983453),
+    ('019', 10.931399,  -3.775501),
+    ('020', 10.97046,  -4.097681),
+    ('021', 12.582006,  -1.298862),
+    ('022', 11.546889,  -3.261333),
+    ('023', 12.249944,  -0.615389),
+    ('024', 12.284487,  -0.829294),
+    ('025', 12.182806,  -0.439917)
   ) as c(mrc, lat, lon)
  where f.country = 'BF' and f.mrc = c.mrc;
 
