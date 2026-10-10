@@ -354,6 +354,29 @@ export const SITE_DAILY_TARGETS: Record<Country, CountryTarget> = {
   UG: { perDay: 2.4, perWeek: 12.1, cumulativeRatePerDay: 12.1 / 7, anchor: "2026-09-07" },
 };
 
+/** A dated period shaded on trend charts. `start`/`end` are inclusive days. */
+export interface DateBand {
+  label: string;
+  start: string;
+  end: string;
+}
+
+/**
+ * Seasonal Malaria Chemoprevention (SMC / CPS) campaign rounds, shaded on the
+ * enrollment trend charts so dips in attendance and positivity can be read
+ * against them. Burkina Faso only; dates from the BF team (2026 season).
+ */
+export const SMC_ROUNDS: Record<Country, DateBand[]> = {
+  BF: [
+    { label: "R0", start: "2026-06-25", end: "2026-06-28" },
+    { label: "R1", start: "2026-07-23", end: "2026-07-26" },
+    { label: "R2", start: "2026-08-20", end: "2026-08-23" },
+    { label: "R3", start: "2026-09-17", end: "2026-09-20" },
+    { label: "R4", start: "2026-10-15", end: "2026-10-18" },
+  ],
+  UG: [],
+};
+
 /** Earliest enrollment day present in the data — day 1 of the study. */
 export function studyStartKey(screened: Enrollee[]): string | null {
   let min: string | null = null;

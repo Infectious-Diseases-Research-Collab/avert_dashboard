@@ -9,6 +9,7 @@ import {
   MiniBar,
   MiniLine,
   ChartLegend,
+  BandLegend,
   seriesMax,
   PALETTE,
   cycleColor,
@@ -51,6 +52,7 @@ import {
   siteProgress,
   DAILY_TARGETS,
   SITE_DAILY_TARGETS,
+  SMC_ROUNDS,
   type TestType,
   type AgeDistributionBy,
   type TrendGranularity,
@@ -105,6 +107,8 @@ export function OverviewSection({
 
   // Study day 1 = the earliest enrollment day in the visible data; target lines
   // are anchored to it.
+  const smcBands = SMC_ROUNDS[country];
+  const smcLegend = smcBands.length > 0 && <BandLegend label={t("charts.smcRounds")} />;
   const startKey = useMemo(() => studyStartKey(enrollees), [enrollees]);
   const endKey = useMemo(() => studyEndKey(enrollees), [enrollees]);
 
@@ -360,6 +364,7 @@ export function OverviewSection({
               data={dailyWithTargets}
               xKey="week"
               dateX
+              bands={smcBands}
               series={[
                 { key: "Screened", name: t("kpi.screened"), color: PALETTE.grey },
                 { key: "Enrolled", name: t("charts.enrolledSeries"), color: PALETTE.primary },
@@ -381,6 +386,7 @@ export function OverviewSection({
               data={cumulative}
               xKey="week"
               dateX
+              bands={smcBands}
               series={[
                 { key: "Enrolled", name: t("charts.enrolledSeries"), color: PALETTE.primary },
                 { key: "Cases", name: t("charts.casesSeries"), color: PALETTE.pos },
@@ -395,12 +401,14 @@ export function OverviewSection({
               data={positivity}
               xKey="week"
               dateX
+              bands={smcBands}
               percent
               series={[
                 { key: "Positivity", name: t("charts.positivitySeries"), color: PALETTE.pos },
               ]}
             />
           )}
+          {smcLegend}
         </Card>
 
         <Card>
@@ -510,6 +518,7 @@ export function OverviewSection({
                 percent={siteMetricView.percent}
                 legend={false}
                 series={siteMetricView.series}
+                bands={smcBands}
               />
               <ChartLegend series={siteMetricView.series} />
             </>
@@ -527,7 +536,15 @@ export function OverviewSection({
                 ).map(([label, data]) => (
                   <div key={label}>
                     <div className="muted text-xs font-medium mb-1">{label}</div>
-                    <MultiLine data={data} xKey="week" dateX height={220} legend={false} series={siteSeries} />
+                    <MultiLine
+                      data={data}
+                      xKey="week"
+                      dateX
+                      height={220}
+                      legend={false}
+                      series={siteSeries}
+                      bands={smcBands}
+                    />
                   </div>
                 ))}
               </div>
@@ -555,6 +572,7 @@ export function OverviewSection({
                       height={220}
                       legend={false}
                       series={siteSeries}
+                      bands={smcBands}
                     />
                   </div>
                 ))}
@@ -639,6 +657,7 @@ export function OverviewSection({
                           xKey="week"
                           series={cumulativeCellSeries}
                           domainMax={cumulativeMax}
+                          bands={smcBands}
                         />
                       ) : positivityRows ? (
                         <MiniLine
@@ -647,6 +666,7 @@ export function OverviewSection({
                           series={[{ key: site.name, color: cycleColor(0) }]}
                           percent
                           domainMax={100}
+                          bands={smcBands}
                         />
                       ) : (
                         <MiniBar
@@ -655,6 +675,7 @@ export function OverviewSection({
                           stacked={siteMetric === "all"}
                           series={siteMetric === "all" ? stackSeries : [stackSeries[0]]}
                           domainMax={siteMetric === "all" ? stackMax : trendMax.cases}
+                          bands={smcBands}
                         />
                       )}
                     </div>
@@ -674,6 +695,7 @@ export function OverviewSection({
               )}
             </>
           )}
+          {smcLegend}
         </Card>
       )}
 

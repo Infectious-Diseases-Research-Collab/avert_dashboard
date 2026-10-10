@@ -59,6 +59,7 @@
     "daily": "Quotidien",
     "weekly": "Hebdomadaire",
     "positivitySeries": "Positivité",
+    "smcRounds": "Bandes ombrées : passages de CPS",
     "targetRate": "Objectif ({rate}/jour)",
     "enrollmentTrendsBySiteSubCumulative": "Inclus, cas et témoins cumulés par site, comparés au rythme cible par site",
     "enrollmentTrendsBySiteSubPositivity": "Cas en proportion des participants inclus, par période, par site",

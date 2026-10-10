@@ -59,6 +59,7 @@
     "daily": "Daily",
     "weekly": "Weekly",
     "positivitySeries": "Positivity",
+    "smcRounds": "Shaded bands: SMC rounds",
     "targetRate": "Target ({rate}/day)",
     "enrollmentTrendsBySiteSubCumulative": "Cumulative enrolled, cases and controls per site, against the per-site target pace",
     "enrollmentTrendsBySiteSubPositivity": "Cases as a share of enrolled, per period, per site",
