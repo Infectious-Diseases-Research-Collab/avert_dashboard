@@ -89,7 +89,7 @@ export function SiteMapLeaflet({
 
   return (
     <div>
-      <div style={{ height }} className="rounded-lg overflow-hidden">
+      <div style={{ height }} className="rounded-lg overflow-hidden isolate">
         <MapContainer bounds={bounds} boundsOptions={{ padding: [30, 30] }} style={{ height: "100%", width: "100%" }}>
           <FitBounds bounds={bounds} />
           <TileLayer
