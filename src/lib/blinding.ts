@@ -6,6 +6,8 @@
  * future field that carries outcome or personal data needs adding here
  * explicitly. Applies only to the routine download; the full unblinded
  * dataset (admin-generated, time-limited link) is exempt by design.
+ * The applied_corrections view repeats this list in SQL
+ * (supabase/migrations/20261022051632_blind_applied_corrections.sql).
  */
 export const BLINDED_DOWNLOAD_DENYLIST = [
   "result",
