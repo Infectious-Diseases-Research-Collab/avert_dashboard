@@ -43,7 +43,7 @@ insert into public.facilities (country, mrc, name, district, region, transmissio
   ('BF','018','CSPS de Klesso','Karangasso-Vigué','Guriko',null),
   ('BF','019','CSPS de Dan','Karangasso-Vigué','Guriko',null),
   ('BF','020','CSPS de Yéguéré','Karangasso-Vigué','Guriko',null),
-  ('BF','021','CM de Fara','Boromo','Bankui',null),
+  ('BF','021','CSPS de Fara','Boromo','Bankui',null),
   ('BF','022','CSPS de Pâ','Boromo','Bankui',null),
   ('BF','023','CSPS Urbain de Zorgho','Zorgho','Oubri',null),
   ('BF','024','CM de Mogtédo','Zorgho','Oubri',null),
