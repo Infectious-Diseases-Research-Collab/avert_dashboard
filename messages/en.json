@@ -213,7 +213,20 @@
     "when": "When",
     "dismissedAction": "Dismissed",
     "reopenedAction": "Reopened",
-    "noAuditEntries": "No dismiss/reopen actions yet."
+    "noAuditEntries": "No dismiss/reopen actions yet.",
+    "downloadTemplate": "Download correction template (CSV)",
+    "downloadTemplateHint": "Open issues that a field correction can fix, pre-filled in the avert_data corrections CSV format. Fill in new_value, reason, source_document, verified_by, verified_at and corrected_by.",
+    "correctionsTitle": "Corrections",
+    "correctionsIntro": "Corrections applied centrally in the data pipeline after checking the source documents. Read-only: each upload overwrites the database, so corrections are made in the pipeline, not here.",
+    "downloadCorrections": "Download corrections (CSV)",
+    "searchCorrections": "Search corrections",
+    "noCorrections": "No corrections applied yet.",
+    "barcode": "Barcode",
+    "field": "Field",
+    "change": "Old → new",
+    "reason": "Reason",
+    "sourceDocument": "Source document",
+    "verifiedBy": "Verified by"
   },
   "map": {
     "title": "Site progress",

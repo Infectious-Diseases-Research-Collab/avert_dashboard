@@ -4,7 +4,13 @@ import { Fragment, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge, fmtNum, fmtPct } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
-import type { DataQualityIssue, DataQualityAuditEntry, DuplicateRecord, Enrollee } from "@/lib/types";
+import type {
+  AppliedCorrection,
+  DataQualityIssue,
+  DataQualityAuditEntry,
+  DuplicateRecord,
+  Enrollee,
+} from "@/lib/types";
 import { verificationState } from "@/lib/metrics";
 import type {
   DemogColumn,
@@ -22,6 +28,30 @@ function Th({ children, className = "" }: { children: React.ReactNode; className
 }
 function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <td className={`px-3 py-2 border-b border-[var(--border)] tabular-nums ${className}`}>{children}</td>;
+}
+
+/** Clickable column header for the sortable tables. Defined once at module
+ *  level: a component created inside a table's render remounts every render. */
+function SortTh<K extends string>({
+  k,
+  sort,
+  onSort,
+  children,
+}: {
+  k: K;
+  sort: { key: K; dir: 1 | -1 };
+  onSort: (key: K) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <th
+      onClick={() => onSort(k)}
+      className="text-left font-medium muted px-3 py-2 border-b border-[var(--border)] cursor-pointer select-none hover:text-[var(--text)]"
+    >
+      {children}
+      {sort.key === k ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
+    </th>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -250,16 +280,6 @@ export function VerificationParticipantsTable({
     setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 }));
   }
 
-  const SortTh = ({ k, children }: { k: VerifSortKey; children: React.ReactNode }) => (
-    <th
-      onClick={() => toggleSort(k)}
-      className="text-left font-medium muted px-3 py-2 border-b border-[var(--border)] cursor-pointer select-none hover:text-[var(--text)]"
-    >
-      {children}
-      {sort.key === k ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
-    </th>
-  );
-
   const statusTone: Record<VerificationState, "warning" | "resolved" | "dismissed"> = {
     outstanding: "warning",
     done: "resolved",
@@ -304,12 +324,12 @@ export function VerificationParticipantsTable({
           <table className="w-full text-sm">
             <thead>
               <tr>
-                <SortTh k="mrc">{t("filters.facility")}</SortTh>
-                <SortTh k="subjid">{t("verification.subjid")}</SortTh>
+                <SortTh k="mrc" sort={sort} onSort={toggleSort}>{t("filters.facility")}</SortTh>
+                <SortTh k="subjid" sort={sort} onSort={toggleSort}>{t("verification.subjid")}</SortTh>
                 <Th>{t("verification.barcode")}</Th>
-                <SortTh k="startdate">{t("verification.dateOfInterview")}</SortTh>
+                <SortTh k="startdate" sort={sort} onSort={toggleSort}>{t("verification.dateOfInterview")}</SortTh>
                 <Th>{t("verification.reason")}</Th>
-                <SortTh k="status">{t("verification.status")}</SortTh>
+                <SortTh k="status" sort={sort} onSort={toggleSort}>{t("verification.status")}</SortTh>
                 <Th>{t("verification.actions")}</Th>
               </tr>
             </thead>
@@ -456,16 +476,6 @@ export function DataQualityTable({
     setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 }));
   }
 
-  const SortTh = ({ k, children }: { k: SortKey; children: React.ReactNode }) => (
-    <th
-      onClick={() => toggleSort(k)}
-      className="text-left font-medium muted px-3 py-2 border-b border-[var(--border)] cursor-pointer select-none hover:text-[var(--text)]"
-    >
-      {children}
-      {sort.key === k ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
-    </th>
-  );
-
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3 mb-3">
@@ -497,13 +507,13 @@ export function DataQualityTable({
           <table className="w-full text-sm">
             <thead>
               <tr>
-                <SortTh k="severity">{t("dataQuality.severity")}</SortTh>
-                <SortTh k="check_code">{t("dataQuality.check")}</SortTh>
+                <SortTh k="severity" sort={sort} onSort={toggleSort}>{t("dataQuality.severity")}</SortTh>
+                <SortTh k="check_code" sort={sort} onSort={toggleSort}>{t("dataQuality.check")}</SortTh>
                 <Th>{t("dataQuality.subject")}</Th>
                 <Th>{t("filters.facility")}</Th>
                 <Th>{t("tables.description")}</Th>
-                <SortTh k="status">{t("dataQuality.status")}</SortTh>
-                <SortTh k="detected_at">{t("dataQuality.detected")}</SortTh>
+                <SortTh k="status" sort={sort} onSort={toggleSort}>{t("dataQuality.status")}</SortTh>
+                <SortTh k="detected_at" sort={sort} onSort={toggleSort}>{t("dataQuality.detected")}</SortTh>
                 <Th>{t("dataQuality.actions")}</Th>
               </tr>
             </thead>
@@ -630,16 +640,6 @@ export function DataQualityAuditTable({
     setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 }));
   }
 
-  const SortTh = ({ k, children }: { k: AuditSortKey; children: React.ReactNode }) => (
-    <th
-      onClick={() => toggleSort(k)}
-      className="text-left font-medium muted px-3 py-2 border-b border-[var(--border)] cursor-pointer select-none hover:text-[var(--text)]"
-    >
-      {children}
-      {sort.key === k ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
-    </th>
-  );
-
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3 mb-3">
@@ -658,12 +658,12 @@ export function DataQualityAuditTable({
           <table className="w-full text-sm">
             <thead>
               <tr>
-                <SortTh k="action">{t("dataQuality.action")}</SortTh>
+                <SortTh k="action" sort={sort} onSort={toggleSort}>{t("dataQuality.action")}</SortTh>
                 <Th>{t("dataQuality.check")}</Th>
                 <Th>{t("dataQuality.subject")}</Th>
                 <Th>{t("filters.facility")}</Th>
-                <SortTh k="actor">{t("dataQuality.actor")}</SortTh>
-                <SortTh k="acted_at">{t("dataQuality.when")}</SortTh>
+                <SortTh k="actor" sort={sort} onSort={toggleSort}>{t("dataQuality.actor")}</SortTh>
+                <SortTh k="acted_at" sort={sort} onSort={toggleSort}>{t("dataQuality.when")}</SortTh>
               </tr>
             </thead>
             <tbody>
@@ -679,6 +679,93 @@ export function DataQualityAuditTable({
                   <Td>{e.mrc ? (facilityNames.get(e.mrc) ?? e.mrc) : "—"}</Td>
                   <Td className="text-xs">{e.actor}</Td>
                   <Td className="text-xs">{e.acted_at.slice(0, 16).replace("T", " ")}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Applied corrections (read-only: fixes live in the avert_data pipeline,
+// because every upload overwrites the database)
+// ---------------------------------------------------------------------------
+
+type CorrectionSortKey = "subjid" | "fieldname" | "new_lastmod";
+
+export function CorrectionsTable({ corrections }: { corrections: AppliedCorrection[] }) {
+  const t = useTranslations();
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<{ key: CorrectionSortKey; dir: 1 | -1 }>({
+    key: "new_lastmod",
+    dir: -1,
+  });
+
+  const filtered = useMemo(() => {
+    let rows = corrections;
+    if (q.trim()) {
+      const needle = q.toLowerCase();
+      rows = rows.filter((c) =>
+        [c.subjid, c.barcode, c.fieldname, c.correction_reason, c.correction_verified_by]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(needle)),
+      );
+    }
+    return [...rows].sort(
+      (a, b) => String(a[sort.key] ?? "").localeCompare(String(b[sort.key] ?? "")) * sort.dir,
+    );
+  }, [corrections, q, sort]);
+
+  function toggleSort(key: CorrectionSortKey) {
+    setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 }));
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t("dataQuality.searchCorrections")}
+          className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm outline-none focus:border-[var(--primary)] flex-1 min-w-[180px]"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="muted text-sm py-8 text-center">{t("dataQuality.noCorrections")}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr>
+                <SortTh k="subjid" sort={sort} onSort={toggleSort}>{t("dataQuality.subject")}</SortTh>
+                <Th>{t("dataQuality.barcode")}</Th>
+                <SortTh k="fieldname" sort={sort} onSort={toggleSort}>{t("dataQuality.field")}</SortTh>
+                <Th>{t("dataQuality.change")}</Th>
+                <SortTh k="new_lastmod" sort={sort} onSort={toggleSort}>{t("dataQuality.when")}</SortTh>
+                <Th>{t("dataQuality.reason")}</Th>
+                <Th>{t("dataQuality.sourceDocument")}</Th>
+                <Th>{t("dataQuality.verifiedBy")}</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((c) => (
+                <tr key={c.id}>
+                  <Td>{c.subjid ?? "—"}</Td>
+                  <Td className="font-mono text-xs whitespace-nowrap">{c.barcode ?? "—"}</Td>
+                  <Td className="font-mono text-xs">{c.fieldname ?? "—"}</Td>
+                  <Td className="font-mono text-xs">
+                    <span className="muted">{c.old_value || "∅"}</span> → {c.new_value || "∅"}
+                  </Td>
+                  <Td className="text-xs whitespace-nowrap">
+                    {c.new_lastmod ? c.new_lastmod.slice(0, 16).replace("T", " ") : "—"}
+                  </Td>
+                  <Td className="text-xs">{c.correction_reason ?? "—"}</Td>
+                  <Td className="text-xs">{c.correction_source_document ?? "—"}</Td>
+                  <Td className="text-xs">{c.correction_verified_by ?? "—"}</Td>
                 </tr>
               ))}
             </tbody>

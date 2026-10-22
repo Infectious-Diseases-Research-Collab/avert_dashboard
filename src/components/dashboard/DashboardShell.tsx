@@ -14,7 +14,15 @@ import {
 } from "@/components/dashboard/sections";
 import { AdminSection } from "@/components/dashboard/AdminSection";
 import type { TestType } from "@/lib/metrics";
-import type { Country, DataQualityIssue, DataQualityAuditEntry, Enrollee, Facility, Profile } from "@/lib/types";
+import type {
+  AppliedCorrection,
+  Country,
+  DataQualityIssue,
+  DataQualityAuditEntry,
+  Enrollee,
+  Facility,
+  Profile,
+} from "@/lib/types";
 
 type SectionKey =
   | "overview"
@@ -64,6 +72,7 @@ export function DashboardShell({
   waivedVerification,
   issues,
   auditLog,
+  corrections,
   villageLookup,
   lastDataPull,
 }: {
@@ -74,6 +83,7 @@ export function DashboardShell({
   waivedVerification: string[];
   issues: DataQualityIssue[];
   auditLog: DataQualityAuditEntry[];
+  corrections: AppliedCorrection[];
   villageLookup: [string, string][];
   lastDataPull: string | null;
 }) {
@@ -134,6 +144,10 @@ export function DashboardShell({
     () => auditLog.filter((a) => a.country === country),
     [auditLog, country],
   );
+  const filteredCorrections = useMemo(
+    () => corrections.filter((c) => c.country === country),
+    [corrections, country],
+  );
 
   const downloadQuery = useMemo(() => {
     const p = new URLSearchParams();
@@ -159,6 +173,7 @@ export function DashboardShell({
     waivedVerification: waivedSet,
     issues: filteredIssues,
     auditLog: filteredAuditLog,
+    corrections: filteredCorrections,
     downloadQuery,
     siteSelected: mrc !== "all",
     selectedMrc: mrc === "all" ? null : mrc,

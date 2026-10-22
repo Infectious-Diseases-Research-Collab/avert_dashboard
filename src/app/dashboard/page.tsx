@@ -10,6 +10,7 @@ import type {
   Facility,
   DataQualityIssue,
   DataQualityAuditEntry,
+  AppliedCorrection,
   VerificationWaiver,
 } from "@/lib/types";
 
@@ -72,6 +73,7 @@ export default async function DashboardPage() {
     coverageBarcodes,
     issues,
     auditLog,
+    corrections,
     waivers,
     lastRunRes,
     villageRows,
@@ -114,6 +116,16 @@ export default async function DashboardPage() {
           .order("acted_at", { ascending: false })
           .range(from, to),
       ),
+      // The applied_corrections view comes from the 20261022042417_corrections
+      // migration; until that is pushed the query errors, and the rest of the
+      // dashboard must still load, so a failure here just means "no rows".
+      fetchAllRows<AppliedCorrection>((from, to) =>
+        supabase
+          .from("applied_corrections")
+          .select("*")
+          .order("new_lastmod", { ascending: false })
+          .range(from, to),
+      ).catch(() => [] as AppliedCorrection[]),
       fetchAllRows<VerificationWaiver>((from, to) =>
         supabase.from("verification_waivers").select("uniqueid,required").range(from, to),
       ),
@@ -164,6 +176,7 @@ export default async function DashboardPage() {
       waivedVerification={waivedVerification}
       issues={issues}
       auditLog={auditLog}
+      corrections={corrections}
       villageLookup={villageLookup}
       lastDataPull={lastDataPull}
     />

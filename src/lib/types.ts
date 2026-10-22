@@ -74,6 +74,7 @@ export interface DataQualityIssue {
   country: Country;
   check_code: string;
   severity: "error" | "warning" | "info";
+  uniqueid: string | null;
   subjid: string | null;
   barcode: string | null;
   mrc: string | null;
@@ -115,6 +116,26 @@ export interface DataQualityAuditEntry {
   action: "dismissed" | "reopened";
   actor: string;
   acted_at: string;
+}
+
+/** A correction applied centrally in avert_data before upload (an audittrail
+ *  row whose new_sourcefile starts with "corrections/"), from the
+ *  applied_corrections view. subjid and mrc are joined from enrollee. */
+export interface AppliedCorrection {
+  id: number;
+  country: Country;
+  uniqueid: string | null;
+  subjid: string | null;
+  barcode: string | null;
+  mrc: string | null;
+  fieldname: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  new_lastmod: string | null;
+  new_sourcefile: string | null;
+  correction_reason: string | null;
+  correction_source_document: string | null;
+  correction_verified_by: string | null;
 }
 
 /** A clinic's decision that an "Other"-reason participant does not in fact

@@ -22,6 +22,7 @@ import {
   VerificationParticipantsTable,
   DataQualityTable,
   DataQualityAuditTable,
+  CorrectionsTable,
 } from "@/components/dashboard/tables";
 import {
   computeKpis,
@@ -57,7 +58,14 @@ import {
   type AgeDistributionBy,
   type TrendGranularity,
 } from "@/lib/metrics";
-import type { Country, Enrollee, Facility, DataQualityIssue, DataQualityAuditEntry } from "@/lib/types";
+import type {
+  AppliedCorrection,
+  Country,
+  Enrollee,
+  Facility,
+  DataQualityIssue,
+  DataQualityAuditEntry,
+} from "@/lib/types";
 
 interface SectionProps {
   enrollees: Enrollee[];
@@ -73,6 +81,8 @@ interface SectionProps {
   waivedVerification: Set<string>;
   issues: DataQualityIssue[];
   auditLog: DataQualityAuditEntry[];
+  /** Corrections applied centrally in avert_data, shown read-only. */
+  corrections: AppliedCorrection[];
   downloadQuery: string;
   /** True when the facility filter has a specific site selected (not "all"). */
   siteSelected: boolean;
@@ -1025,7 +1035,13 @@ export function VerificationSection({
 
 // ---------------------------------------------------------------------------
 
-export function DataQualitySection({ issues, auditLog, facilityNames, downloadQuery }: SectionProps) {
+export function DataQualitySection({
+  issues,
+  auditLog,
+  corrections,
+  facilityNames,
+  downloadQuery,
+}: SectionProps) {
   const t = useTranslations();
   return (
     <div className="space-y-5">
@@ -1034,15 +1050,40 @@ export function DataQualitySection({ issues, auditLog, facilityNames, downloadQu
           title={t("dataQuality.title")}
           subtitle={t("dataQuality.intro")}
           action={
-            <a
-              href={`/api/download/data_quality?${downloadQuery}`}
-              className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
-            >
-              {t("dataQuality.downloadErrors")}
-            </a>
+            <div className="flex flex-wrap justify-end gap-2">
+              <a
+                href={`/api/download/correction_template?${downloadQuery}`}
+                className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
+                title={t("dataQuality.downloadTemplateHint")}
+              >
+                {t("dataQuality.downloadTemplate")}
+              </a>
+              <a
+                href={`/api/download/data_quality?${downloadQuery}`}
+                className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
+              >
+                {t("dataQuality.downloadErrors")}
+              </a>
+            </div>
           }
         />
         <DataQualityTable issues={issues} facilityNames={facilityNames} />
+      </Card>
+
+      <Card>
+        <SectionTitle
+          title={t("dataQuality.correctionsTitle")}
+          subtitle={t("dataQuality.correctionsIntro")}
+          action={
+            <a
+              href={`/api/download/corrections?${downloadQuery}`}
+              className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
+            >
+              {t("dataQuality.downloadCorrections")}
+            </a>
+          }
+        />
+        <CorrectionsTable corrections={corrections} />
       </Card>
 
       <Card>

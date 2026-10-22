@@ -213,7 +213,20 @@
     "when": "Quand",
     "dismissedAction": "Écarté",
     "reopenedAction": "Rouvert",
-    "noAuditEntries": "Aucune action d'écartement/réouverture pour l'instant."
+    "noAuditEntries": "Aucune action d'écartement/réouverture pour l'instant.",
+    "downloadTemplate": "Télécharger le modèle de correction (CSV)",
+    "downloadTemplateHint": "Problèmes ouverts qu'une correction de champ peut résoudre, pré-remplis au format CSV des corrections d'avert_data. Remplissez new_value, reason, source_document, verified_by, verified_at et corrected_by.",
+    "correctionsTitle": "Corrections",
+    "correctionsIntro": "Corrections appliquées de manière centralisée dans le pipeline de données après vérification des documents sources. Lecture seule : chaque téléversement écrase la base de données, les corrections se font donc dans le pipeline, pas ici.",
+    "downloadCorrections": "Télécharger les corrections (CSV)",
+    "searchCorrections": "Rechercher des corrections",
+    "noCorrections": "Aucune correction appliquée pour l'instant.",
+    "barcode": "Code-barres",
+    "field": "Champ",
+    "change": "Ancien → nouveau",
+    "reason": "Motif",
+    "sourceDocument": "Document source",
+    "verifiedBy": "Vérifié par"
   },
   "map": {
     "title": "Progression par site",
