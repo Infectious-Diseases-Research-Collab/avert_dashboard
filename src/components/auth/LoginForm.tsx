@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
-import { setLocale } from "@/i18n/locale";
+import { useChangeLocale } from "@/i18n/LocaleProvider";
 import type { Locale } from "@/lib/types";
 import enMessages from "../../../messages/en.json";
 import frMessages from "../../../messages/fr.json";
@@ -20,6 +21,8 @@ const AUTH_STRINGS = { en: enMessages.auth, fr: frMessages.auth } as const;
 export function LoginForm() {
   const t = useTranslations("auth");
   const activeLocale = useLocale() as Locale;
+  const changeLocale = useChangeLocale();
+  const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,7 +39,11 @@ export function LoginForm() {
       p_email: email.toLowerCase(),
     });
     if (data) {
-      await setLocale(data as Locale);
+      if (data !== activeLocale) {
+        await changeLocale(data as Locale);
+        // The login page's side panel is server-rendered from the cookie.
+        router.refresh();
+      }
       return data as Locale;
     }
     return activeLocale;

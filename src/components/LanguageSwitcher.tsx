@@ -1,19 +1,32 @@
 "use client";
 
 import { useLocale } from "next-intl";
+import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { setLocale } from "@/i18n/locale";
+import { useChangeLocale } from "@/i18n/LocaleProvider";
 import type { Locale } from "@/lib/types";
 
-export function LanguageSwitcher() {
+/**
+ * `refresh` also re-renders the page on the server, for pages whose text comes
+ * from server-side getTranslations (login, reset-password). Leave it off on
+ * /dashboard, where everything is client-rendered and a refresh would
+ * re-fetch all the study data.
+ */
+export function LanguageSwitcher({ refresh = false }: { refresh?: boolean }) {
   const active = useLocale() as Locale;
+  const changeLocale = useChangeLocale();
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   function choose(locale: Locale) {
     if (locale === active) return;
-    startTransition(async () => {
-      await setLocale(locale);
-    });
+    const saved = changeLocale(locale);
+    if (refresh) {
+      startTransition(async () => {
+        await saved;
+        router.refresh();
+      });
+    }
   }
 
   return (

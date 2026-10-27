@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { NextIntlClientProvider } from "next-intl";
-import { getLocale } from "next-intl/server";
+import { getLocale, getTimeZone } from "next-intl/server";
+import { LocaleProvider } from "@/i18n/LocaleProvider";
+import type { Locale } from "@/lib/types";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -16,14 +17,17 @@ export const metadata: Metadata = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const locale = await getLocale();
+  const locale = (await getLocale()) as Locale;
+  const timeZone = await getTimeZone();
   return (
     <html
       lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <LocaleProvider initialLocale={locale} timeZone={timeZone}>
+          {children}
+        </LocaleProvider>
       </body>
     </html>
   );

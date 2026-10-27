@@ -31,7 +31,7 @@ export default async function ResetPasswordPage() {
 
       <div className="flex flex-col">
         <div className="flex justify-end p-4">
-          <LanguageSwitcher />
+          <LanguageSwitcher refresh />
         </div>
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-sm">
