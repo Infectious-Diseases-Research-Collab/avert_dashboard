@@ -26,16 +26,16 @@ insert into public.facilities (country, mrc, name, district, region, transmissio
   ('BF','001','Mankarga V3','Zorgho','Oubri','Modérée'),
   ('BF','002','Mankarga V6','Zorgho','Oubri','Modérée'),
   ('BF','012','Mankarga T','Zorgho','Oubri','Modérée'),
-  ('BF','003','Béréba','Houndé','Hauts-Bassins','Modérée'),
-  ('BF','004','Dohoun','Houndé','Hauts-Bassins','Modérée'),
-  ('BF','005','Kari','Houndé','Hauts-Bassins','Modérée'),
-  ('BF','006','Karangasso-Vigué','Karangasso-Vigué','Hauts-Bassins','Forte'),
-  ('BF','007','Soumousso','Karangasso-Vigué','Hauts-Bassins','Forte'),
-  ('BF','008','Wara','Karangasso-Vigué','Hauts-Bassins','Forte'),
-  ('BF','009','Déguélin','Karangasso-Vigué','Hauts-Bassins','Forte'),
-  ('BF','010','Boromo','Boromo','Boucle Mouhoun','Forte'),
-  ('BF','011','Ouahabou','Boromo','Boucle Mouhoun','Forte'),
-  ('BF','013','Boromo Urbain 2','Boromo','Boucle Mouhoun','Forte'),
+  ('BF','003','Béréba','Houndé','Guriko','Modérée'),
+  ('BF','004','Dohoun','Houndé','Guriko','Modérée'),
+  ('BF','005','Kari','Houndé','Guriko','Modérée'),
+  ('BF','006','Karangasso Vigue','Karangasso-Vigué','Guriko','Forte'),
+  ('BF','007','Soumousso','Karangasso-Vigué','Guriko','Forte'),
+  ('BF','008','Wara','Karangasso-Vigué','Guriko','Forte'),
+  ('BF','009','Deguelin','Karangasso-Vigué','Guriko','Forte'),
+  ('BF','010','Boromo','Boromo','Bankui','Forte'),
+  ('BF','011','Ouahabou','Boromo','Bankui','Forte'),
+  ('BF','013','Boromo Urbain 2','Boromo','Bankui','Forte'),
   ('BF','014','CM de Bama','Dandé','Guriko',null),
   ('BF','015','CSPS de Dandé','Dandé','Guriko',null),
   ('BF','016','CSPS Dougoumato 2','Houndé','Guriko',null),
@@ -47,13 +47,17 @@ insert into public.facilities (country, mrc, name, district, region, transmissio
   ('BF','022','CSPS de Pâ','Boromo','Bankui',null),
   ('BF','023','CSPS Urbain de Zorgho','Zorgho','Oubri',null),
   ('BF','024','CM de Mogtédo','Zorgho','Oubri',null),
-  ('BF','025','CSPS de Sapaga','Zorgho','Oubri',null)
+  ('BF','025','CSPS de Sapaga','Zorgho','Oubri',null),
+  ('BF','026','CM de Poura','Boromo','Bankui',null),
+  ('BF','027','CSPS de Poya','Karangasso-Vigué','Guriko',null),
+  ('BF','028','CSPS de Diosso','Karangasso-Vigué','Guriko',null),
+  ('BF','029','CM de Fara','Boromo','Bankui',null)
 on conflict (country, mrc) do update
   set name = excluded.name, district = excluded.district,
       region = excluded.region, transmission_zone = excluded.transmission_zone;
 
 -- ---------------------------------------------------------------------
--- Site coordinates (Burkina Faso), from Coordonnées_Sites_etude_R21.xlsx (001-013) and later additions (014-025).
+-- Site coordinates (Burkina Faso), from Coordonnées_Sites_etude_R21.xlsx (001-013) and later additions (014-029).
 -- Keyed on mrc, NOT on name: the source spreadsheet spells four sites
 -- differently (Bereba / Karangasso Vigue / Deguelin / Boromo), so matching
 -- by name would silently miss them. The map omits any site whose
@@ -86,7 +90,11 @@ update public.facilities as f
     ('022', 11.546889,  -3.261333),
     ('023', 12.249944,  -0.615389),
     ('024', 12.284487,  -0.829294),
-    ('025', 12.182806,  -0.439917)
+    ('025', 12.182806,  -0.439917),
+    ('026', 11.5994722222, -2.7620277778),
+    ('027', 11.0730007, -3.794663),
+    ('028', 10.77776656, -3.8946881),
+    ('029', 12.582006, -1.298862)
   ) as c(mrc, lat, lon)
  where f.country = 'BF' and f.mrc = c.mrc;
 

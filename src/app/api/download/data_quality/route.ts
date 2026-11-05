@@ -4,6 +4,7 @@ import { LOCALE_COOKIE } from "@/i18n/request";
 import { toCsv, csvResponse } from "@/lib/csv";
 import { fetchAllRows } from "@/lib/supabase/paginate";
 import type { DataQualityIssue } from "@/lib/types";
+import { facilityNameLookup, type FacilityNameRow } from "@/lib/facilities";
 
 /**
  * Export the data-quality issues as CSV, with the human-readable "Error reason"
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
   // setting regardless of `.limit()`, so the export has to be paged through
   // with fetchAllRows (see the same fix in src/app/dashboard/page.tsx).
   let issues: DataQualityIssue[];
-  let facRows: { mrc: string; name: string }[];
+  let facRows: FacilityNameRow[];
   try {
     [issues, facRows] = await Promise.all([
       fetchAllRows<DataQualityIssue>((from, to) => {
@@ -38,15 +39,15 @@ export async function GET(request: Request) {
         if (status !== "all") q = q.eq("status", status);
         return q.range(from, to);
       }),
-      fetchAllRows<{ mrc: string; name: string }>((from, to) =>
-        supabase.from("facilities").select("mrc,name").range(from, to),
+      fetchAllRows<FacilityNameRow>((from, to) =>
+        supabase.from("facilities").select("country,mrc,name").range(from, to),
       ),
     ]);
   } catch (error) {
     return new Response(error instanceof Error ? error.message : "Query failed", { status: 500 });
   }
 
-  const facName = new Map(facRows.map((f) => [f.mrc, f.name]));
+  const facName = facilityNameLookup(facRows);
 
   // "Error reason" is inserted first so toCsv (column order = first-seen key) puts it first.
   const rows = issues.map((r) => ({
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
     country: r.country,
     subjid: r.subjid,
     barcode: r.barcode,
-    facility: r.mrc ? (facName.get(r.mrc) ?? r.mrc) : "",
+    facility: facName(r.country, r.mrc),
     field: r.field,
     status: r.status,
     detected_at: r.detected_at,

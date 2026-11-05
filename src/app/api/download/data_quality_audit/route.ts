@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { toCsv, csvResponse } from "@/lib/csv";
 import { fetchAllRows } from "@/lib/supabase/paginate";
 import type { DataQualityAuditEntry } from "@/lib/types";
+import { facilityNameLookup, type FacilityNameRow } from "@/lib/facilities";
 
 /**
  * Export the full dismiss/reopen audit history for data-quality issues.
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
   // setting regardless of `.limit()`, so the export has to be paged through
   // with fetchAllRows (see the same fix in src/app/dashboard/page.tsx).
   let auditLog: DataQualityAuditEntry[];
-  let facRows: { mrc: string; name: string }[];
+  let facRows: FacilityNameRow[];
   try {
     [auditLog, facRows] = await Promise.all([
       fetchAllRows<DataQualityAuditEntry>((from, to) => {
@@ -29,15 +30,15 @@ export async function GET(request: Request) {
         if (country) q = q.eq("country", country);
         return q.range(from, to);
       }),
-      fetchAllRows<{ mrc: string; name: string }>((from, to) =>
-        supabase.from("facilities").select("mrc,name").range(from, to),
+      fetchAllRows<FacilityNameRow>((from, to) =>
+        supabase.from("facilities").select("country,mrc,name").range(from, to),
       ),
     ]);
   } catch (error) {
     return new Response(error instanceof Error ? error.message : "Query failed", { status: 500 });
   }
 
-  const facName = new Map(facRows.map((f) => [f.mrc, f.name]));
+  const facName = facilityNameLookup(facRows);
 
   const rows = auditLog.map((r) => ({
     action: r.action,
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
     country: r.country,
     subjid: r.subjid,
     barcode: r.barcode,
-    facility: r.mrc ? (facName.get(r.mrc) ?? r.mrc) : "",
+    facility: facName(r.country, r.mrc),
     issue_id: r.issue_id,
   }));
 

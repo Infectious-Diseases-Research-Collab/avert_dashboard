@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { toCsv, csvResponse } from "@/lib/csv";
 import { fetchAllRows } from "@/lib/supabase/paginate";
+import { facilityNameLookup, type FacilityNameRow } from "@/lib/facilities";
 
 /**
  * Deployed-vs-used barcode comparison CSV: one row per barcode, flagging
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
   // through with fetchAllRows (see the same fix in src/app/dashboard/page.tsx).
   let deployedRows: DeployedRow[];
   let usedRows: UsedRow[];
-  let facRows: { mrc: string; name: string }[];
+  let facRows: FacilityNameRow[];
   try {
     [deployedRows, usedRows, facRows] = await Promise.all([
       fetchAllRows<DeployedRow>((from, to) => {
@@ -39,15 +40,15 @@ export async function GET(request: Request) {
         if (country) q = q.eq("country", country);
         return q.range(from, to);
       }),
-      fetchAllRows<{ mrc: string; name: string }>((from, to) =>
-        supabase.from("facilities").select("mrc,name").range(from, to),
+      fetchAllRows<FacilityNameRow>((from, to) =>
+        supabase.from("facilities").select("country,mrc,name").range(from, to),
       ),
     ]);
   } catch (error) {
     return new Response(error instanceof Error ? error.message : "Query failed", { status: 500 });
   }
 
-  const facName = new Map(facRows.map((f) => [f.mrc, f.name]));
+  const facName = facilityNameLookup(facRows);
 
   type Row = {
     barcode: string;
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
   for (const u of usedRows) {
     const barcode = u.barcode;
     if (!barcode) continue;
-    const facility = u.mrc ? (facName.get(u.mrc) ?? u.mrc) : "";
+    const facility = facName(u.country, u.mrc);
     const existing = byBarcode.get(barcode);
     if (existing) {
       existing.used = "Y";

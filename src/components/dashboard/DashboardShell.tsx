@@ -114,9 +114,12 @@ export function DashboardShell({
     () => facilities.filter((f) => f.country === country),
     [facilities, country],
   );
+  // mrc codes are only unique within a country (UG and BF both have a 027), so
+  // this has to be built from the current country's facilities alone. Everything
+  // it's looked up against in sectionProps is scoped to the same country.
   const facilityNames = useMemo(
-    () => new Map(facilities.map((f) => [f.mrc, f.name])),
-    [facilities],
+    () => new Map(facilityOptions.map((f) => [f.mrc, f.name])),
+    [facilityOptions],
   );
   const villageNames = useMemo(() => new Map(villageLookup), [villageLookup]);
 

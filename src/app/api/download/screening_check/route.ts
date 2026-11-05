@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { toCsv, csvResponse } from "@/lib/csv";
 import { fetchAllRows } from "@/lib/supabase/paginate";
+import { facilityNameLookup, type FacilityNameRow } from "@/lib/facilities";
 
 /**
  * Site/date/RDT-result-only export for reconciling screening numbers against
@@ -25,10 +26,9 @@ export async function GET(request: Request) {
   const to = searchParams.get("to");
 
   type Row = { country: string; mrc: string | null; startdate: string | null; result: number | null };
-  type FacRow = { mrc: string; name: string };
 
   let rows: Row[];
-  let facRows: FacRow[];
+  let facRows: FacilityNameRow[];
   try {
     // PostgREST caps every response at this project's ~1,000-row "Max Rows"
     // setting regardless of `.limit()`, so the export has to be paged through
@@ -42,18 +42,18 @@ export async function GET(request: Request) {
         if (to) query = query.lte("startdate", to);
         return query.range(rangeFrom, rangeTo);
       }),
-      fetchAllRows<FacRow>((rangeFrom, rangeTo) =>
-        supabase.from("facilities").select("mrc,name").range(rangeFrom, rangeTo),
+      fetchAllRows<FacilityNameRow>((rangeFrom, rangeTo) =>
+        supabase.from("facilities").select("country,mrc,name").range(rangeFrom, rangeTo),
       ),
     ]);
   } catch (error) {
     return new Response(error instanceof Error ? error.message : "Query failed", { status: 500 });
   }
 
-  const facName = new Map(facRows.map((f) => [f.mrc, f.name]));
+  const facName = facilityNameLookup(facRows);
   const out = rows.map((r) => ({
     country: r.country,
-    facility: r.mrc ? (facName.get(r.mrc) ?? r.mrc) : "",
+    facility: facName(r.country, r.mrc),
     date: r.startdate,
     rdt_result: r.result,
   }));
