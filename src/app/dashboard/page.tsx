@@ -19,9 +19,9 @@ const ENROLLEE_COLS =
   "agemonths_calculated,age_eligible,mal_test_eligible,consent_eligible,gender,sex," +
   "result,vx_card,need_vac_cov,vx_any,vx_doses_received," +
   "vx_dose1_date,vx_dose2_date,vx_dose3_date,vx_dose4_date," +
-  // Not typed columns -- projected out of the raw jsonb, so they arrive as
-  // text. Drives the reason shown in the verification list.
-  "vx_card_no:raw->>vx_card_no,vx_card_no_oth:raw->>vx_card_no_oth";
+  // Generated from the raw jsonb, so reading them doesn't decompress raw on
+  // every row. Drive the reason shown in the verification list.
+  "vx_card_no,vx_card_no_oth";
 
 type VillageRow = {
   countryid: number;
@@ -89,7 +89,8 @@ export default async function DashboardPage() {
       // `unknown` cast), so the builder is cast through `unknown` here too.
       fetchAllRows<Enrollee>(
         (from, to) =>
-          supabase.from("enrollee").select(ENROLLEE_COLS).range(from, to) as unknown as PromiseLike<
+          // Paging needs a stable order, or rows can repeat or go missing between pages.
+          supabase.from("enrollee").select(ENROLLEE_COLS).order("uniqueid").range(from, to) as unknown as PromiseLike<
             PageResult<Enrollee>
           >,
       ),

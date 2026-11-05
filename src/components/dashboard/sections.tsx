@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Card, SectionTitle, StatCard, EmptyState, fmtPct } from "@/components/ui";
+import { Card, CollapsibleCard, SectionTitle, StatCard, EmptyState, fmtPct } from "@/components/ui";
 import {
   MultiLine,
   MultiBar,
@@ -1045,62 +1045,60 @@ export function DataQualitySection({
   const t = useTranslations();
   return (
     <div className="space-y-5">
-      <Card>
-        <SectionTitle
-          title={t("dataQuality.title")}
-          subtitle={t("dataQuality.intro")}
-          action={
-            <div className="flex flex-wrap justify-end gap-2">
-              <a
-                href={`/api/download/correction_template?${downloadQuery}`}
-                className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
-                title={t("dataQuality.downloadTemplateHint")}
-              >
-                {t("dataQuality.downloadTemplate")}
-              </a>
-              <a
-                href={`/api/download/data_quality?${downloadQuery}`}
-                className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
-              >
-                {t("dataQuality.downloadErrors")}
-              </a>
-            </div>
-          }
-        />
+      <CollapsibleCard
+        defaultOpen
+        title={t("dataQuality.title")}
+        subtitle={t("dataQuality.intro")}
+        action={
+          <div className="flex flex-wrap justify-end gap-2">
+            <a
+              href={`/api/download/correction_template?${downloadQuery}`}
+              className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
+              title={t("dataQuality.downloadTemplateHint")}
+            >
+              {t("dataQuality.downloadTemplate")}
+            </a>
+            <a
+              href={`/api/download/data_quality?${downloadQuery}`}
+              className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
+            >
+              {t("dataQuality.downloadErrors")}
+            </a>
+          </div>
+        }
+      >
         <DataQualityTable issues={issues} facilityNames={facilityNames} />
-      </Card>
+      </CollapsibleCard>
 
-      <Card>
-        <SectionTitle
-          title={t("dataQuality.correctionsTitle")}
-          subtitle={t("dataQuality.correctionsIntro")}
-          action={
-            <a
-              href={`/api/download/corrections?${downloadQuery}`}
-              className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
-            >
-              {t("dataQuality.downloadCorrections")}
-            </a>
-          }
-        />
+      <CollapsibleCard
+        title={t("dataQuality.correctionsTitle")}
+        subtitle={t("dataQuality.correctionsIntro")}
+        action={
+          <a
+            href={`/api/download/corrections?${downloadQuery}`}
+            className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
+          >
+            {t("dataQuality.downloadCorrections")}
+          </a>
+        }
+      >
         <CorrectionsTable corrections={corrections} />
-      </Card>
+      </CollapsibleCard>
 
-      <Card>
-        <SectionTitle
-          title={t("dataQuality.auditTitle")}
-          subtitle={t("dataQuality.auditIntro")}
-          action={
-            <a
-              href={`/api/download/data_quality_audit?${downloadQuery}`}
-              className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
-            >
-              {t("dataQuality.downloadAudit")}
-            </a>
-          }
-        />
+      <CollapsibleCard
+        title={t("dataQuality.auditTitle")}
+        subtitle={t("dataQuality.auditIntro")}
+        action={
+          <a
+            href={`/api/download/data_quality_audit?${downloadQuery}`}
+            className="text-sm rounded-lg border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface-2)] whitespace-nowrap"
+          >
+            {t("dataQuality.downloadAudit")}
+          </a>
+        }
+      >
         <DataQualityAuditTable entries={auditLog} facilityNames={facilityNames} />
-      </Card>
+      </CollapsibleCard>
     </div>
   );
 }

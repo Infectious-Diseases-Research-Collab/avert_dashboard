@@ -2,7 +2,8 @@
   "app": {
     "title": "AVERT study",
     "subtitle": "Assessing Vaccine Effectiveness of R21/Matrix-M across malaria Transmission settings",
-    "lastDataPull": "Last data pull"
+    "lastDataPull": "Last data pull",
+    "loadingData": "Loading study data…"
   },
   "nav": {
     "overview": "Overview",
@@ -195,6 +196,7 @@
     "resolvedAt": "Resolved",
     "noIssues": "No issues found.",
     "search": "Search issues",
+    "previousBarcode": "Previous barcode",
     "actions": "Actions",
     "dismiss": "Dismiss",
     "reopen": "Reopen",

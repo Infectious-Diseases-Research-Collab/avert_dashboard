@@ -2,7 +2,8 @@
   "app": {
     "title": "Étude AVERT",
     "subtitle": "Évaluation de l'efficacité du vaccin R21/Matrix-M selon les niveaux de transmission du paludisme",
-    "lastDataPull": "Dernière extraction"
+    "lastDataPull": "Dernière extraction",
+    "loadingData": "Chargement des données de l'étude…"
   },
   "nav": {
     "overview": "Aperçu",
@@ -195,6 +196,7 @@
     "resolvedAt": "Résolu le",
     "noIssues": "Aucun problème trouvé.",
     "search": "Rechercher",
+    "previousBarcode": "Code-barres précédent",
     "actions": "Actions",
     "dismiss": "Écarter",
     "reopen": "Rouvrir",

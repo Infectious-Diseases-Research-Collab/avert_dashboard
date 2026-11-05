@@ -41,7 +41,7 @@ export async function GET(request: Request) {
           .from("enrollee")
           .select(
             "uniqueid,country,subjid,barcode,mrc,startdate," +
-              "vx_card_no:raw->>vx_card_no,vx_card_no_oth:raw->>vx_card_no_oth",
+              "vx_card_no,vx_card_no_oth",
           )
           .eq("need_vac_cov", 1);
         if (country) query = query.eq("country", country);

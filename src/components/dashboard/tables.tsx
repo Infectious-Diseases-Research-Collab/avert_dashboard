@@ -380,6 +380,24 @@ export function VerificationParticipantsTable({
 
 type SortKey = "severity" | "check_code" | "status" | "detected_at";
 
+/** Each side of a flagged pair that is a return visit, as barcode → last visit's barcode. */
+function PreviousBarcodes({ issue }: { issue: DataQualityIssue }) {
+  const pairs = [
+    [issue.barcode, issue.previous_barcode],
+    [issue.related_barcode, issue.related_previous_barcode],
+  ].filter(([, previous]) => previous);
+  if (pairs.length === 0) return <>—</>;
+  return (
+    <>
+      {pairs.map(([barcode, previous]) => (
+        <div key={barcode}>
+          {barcode} → {previous}
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function DataQualityTable({
   issues,
   facilityNames,
@@ -512,6 +530,7 @@ export function DataQualityTable({
                 <Th>{t("dataQuality.subject")}</Th>
                 <Th>{t("filters.facility")}</Th>
                 <Th>{t("tables.description")}</Th>
+                <Th>{t("dataQuality.previousBarcode")}</Th>
                 <SortTh k="status" sort={sort} onSort={toggleSort}>{t("dataQuality.status")}</SortTh>
                 <SortTh k="detected_at" sort={sort} onSort={toggleSort}>{t("dataQuality.detected")}</SortTh>
                 <Th>{t("dataQuality.actions")}</Th>
@@ -536,6 +555,9 @@ export function DataQualityTable({
                       <Td>{i.mrc ? (facilityNames.get(i.mrc) ?? i.mrc) : "—"}</Td>
                       <Td className="max-w-[380px] whitespace-normal">
                         {locale === "fr" ? i.description_fr : i.description}
+                      </Td>
+                      <Td className="font-mono text-xs whitespace-nowrap">
+                        <PreviousBarcodes issue={i} />
                       </Td>
                       <Td>
                         <Badge tone={st}>{t(`dataQuality.${st}`)}</Badge>
@@ -563,7 +585,7 @@ export function DataQualityTable({
                     </tr>
                     {isDup && isOpen && (
                       <tr>
-                        <td colSpan={8} className="px-3 py-3 border-b border-[var(--border)] bg-[var(--surface-2)]">
+                        <td colSpan={9} className="px-3 py-3 border-b border-[var(--border)] bg-[var(--surface-2)]">
                           {droppedBusy ? (
                             <p className="muted text-xs">{t("dataQuality.loading")}</p>
                           ) : !droppedRows || droppedRows.length === 0 ? (

@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
@@ -21,6 +24,49 @@ export function SectionTitle({
       </div>
       {action}
     </div>
+  );
+}
+
+export function CollapsibleCard({
+  title,
+  subtitle,
+  action,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Card>
+      <div className={cn("flex flex-wrap items-start justify-between gap-x-4 gap-y-2", open && "mb-4")}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="flex flex-1 min-w-[220px] items-start gap-2 text-left"
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className={cn("muted mt-0.5 h-5 w-5 shrink-0 transition-transform", open && "rotate-90")}
+          >
+            <path d="M7.2 4.2a1 1 0 0 1 1.4 0l5.1 5.1a1 1 0 0 1 0 1.4l-5.1 5.1a1 1 0 0 1-1.4-1.4L11.6 10 7.2 5.6a1 1 0 0 1 0-1.4Z" />
+          </svg>
+          <span>
+            <span className="block text-base font-semibold">{title}</span>
+            {subtitle && <span className="muted block text-sm mt-0.5">{subtitle}</span>}
+          </span>
+        </button>
+        {action}
+      </div>
+      {open && children}
+    </Card>
   );
 }
 

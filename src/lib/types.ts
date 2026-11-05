@@ -86,6 +86,12 @@ export interface DataQualityIssue {
   resolved_at: string | null;
   dismissed_at?: string | null;
   dismissed_by?: string | null;
+  /** The pair's other barcode, on checks that compare two records. */
+  related_barcode?: string | null;
+  /** Last-visit barcode of this issue's record, when first_enroll = 0. */
+  previous_barcode?: string | null;
+  /** Last-visit barcode of the related_barcode record, when first_enroll = 0. */
+  related_previous_barcode?: string | null;
 }
 
 /** A row dropped by upload_to_supabase.py's dedupe_on_conflict() when two

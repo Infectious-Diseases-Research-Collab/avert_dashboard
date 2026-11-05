@@ -59,6 +59,9 @@ export async function GET(request: Request) {
     barcode: r.barcode,
     facility: facName(r.country, r.mrc),
     field: r.field,
+    related_barcode: r.related_barcode ?? "",
+    previous_barcode: r.previous_barcode ?? "",
+    related_previous_barcode: r.related_previous_barcode ?? "",
     status: r.status,
     detected_at: r.detected_at,
   }));
