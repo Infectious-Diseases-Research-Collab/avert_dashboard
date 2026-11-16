@@ -48,7 +48,7 @@
   "charts": {
     "weeklyTrends": "Tendances hebdomadaires d'inclusion",
     "dailyTrends": "Tendances quotidiennes d'inclusion",
-    "dailyTrendsSub": "Inclusions par période, comparées aux objectifs quotidiens",
+    "dailyTrendsSub": "Inclusions par période, comparées aux objectifs de l'étude",
     "cumulativeTrends": "Inclusions cumulées",
     "cumulativeTrendsSub": "Totaux cumulés depuis la première inclusion, comparés au rythme cible",
     "positivityTrends": "Taux de positivité",
@@ -61,7 +61,7 @@
     "weekly": "Hebdomadaire",
     "positivitySeries": "Positivité",
     "smcRounds": "Bandes ombrées : passages de CPS",
-    "targetRate": "Objectif ({rate}/jour)",
+    "targetRate": "Objectif ({rate, number}/jour)",
     "enrollmentTrendsBySiteSubCumulative": "Inclus, cas et témoins cumulés par site, comparés au rythme cible par site",
     "enrollmentTrendsBySiteSubPositivity": "Cas en proportion des participants inclus, par période, par site",
     "dailyView": "Vue quotidienne",
@@ -122,7 +122,13 @@
     "week": "Semaine",
     "ageMonths": "Âge (mois)",
     "weeks": "Semaines",
-    "doseCount": "Nombre de doses"
+    "doseCount": "Nombre de doses",
+    "targetCasesPrimary": "Objectif principal ({rate, number} cas/{period})",
+    "targetCasesSecondary": "Objectif secondaire ({rate, number} cas/{period})",
+    "perDay": "jour",
+    "perWeek": "semaine",
+    "dailyTrendsSubSite": "Inclusions par période",
+    "cumulativeTrendsSubSite": "Totaux cumulés depuis la première inclusion"
   },
   "tables": {
     "demographics": "Résumé démographique",
@@ -232,13 +238,15 @@
   },
   "map": {
     "title": "Progression par site",
-    "subtitle": "Cas cumulés comparés à un objectif de {rate} cas/jour par site",
-    "onTrack": "Dans les temps (≥90 %)",
-    "near": "Proche (60–89 %)",
-    "behind": "En retard (<60 %)",
+    "subtitle": "Moyenne de cas par semaine sur les 3 dernières semaines, comparée à un objectif de {rate} cas/semaine par site",
+    "onTrack": "Dans les temps (2–3/sem.)",
+    "near": "Proche (1–2/sem.)",
+    "behind": "En retard (<1/sem.)",
     "hoverHint": "Survolez un site pour les détails",
     "noCoordinates": "Aucune coordonnée de site",
-    "noCoordinatesHint": "Exécutez le script de coordonnées des formations sanitaires dans Supabase pour afficher les sites sur la carte."
+    "noCoordinatesHint": "Exécutez le script de coordonnées des formations sanitaires dans Supabase pour afficher les sites sur la carte.",
+    "exceeding": "Au-delà (≥3/sem.)",
+    "tooltip": "{avg} cas/sem. (objectif {target}) — {pct} %"
   },
   "download": {
     "title": "Télécharger les données",

@@ -324,6 +324,11 @@ export function enrollmentTrendsBySite(
 // ---------------------------------------------------------------------------
 
 export interface CountryTarget {
+  /** Column the target is written to on chart rows (e.g. "Target"). */
+  key: string;
+  /** Which legend label to use: an enrolled-based rate, or a primary /
+   *  secondary analysis case target. */
+  label: "enrolled" | "casesPrimary" | "casesSecondary";
   /** Flat target shown on the daily-view (non-cumulative) chart. */
   perDay: number;
   /** Flat target shown on the weekly-view (non-cumulative) chart. */
@@ -337,22 +342,40 @@ export interface CountryTarget {
 }
 
 /**
- * Study-wide daily enrollment targets. Burkina Faso: 16.4/day reaches 3500
- * enrolled over the ~213-day enrollment period, counted from the first
- * enrollment in the data. Uganda enrolls 5 days/week (21.8/day, 109.3/week);
- * its cumulative line is anchored to 2026-09-07 (when every site went live)
- * rather than the data, and slopes at the weekly rate spread over all 7
- * calendar days (109.3/7/day) so it rises smoothly across weekends.
+ * Study-wide enrollment targets, drawn on the overall (all-sites) charts only.
+ *
+ * Burkina Faso (recalculated power, Nov 2026) has two CASE targets, both
+ * enrolling 5 days/week and anchored to the week of 2026-07-13:
+ *   - primary analysis: 880 cases — 6/day, 30/week;
+ *   - secondary analysis: 1760 cases — 12/day, 60.8/week (figure as given).
+ * Cumulative lines slope at the weekly rate spread over all 7 calendar days
+ * so they rise smoothly across weekends.
+ *
+ * Uganda enrolls 5 days/week (21.8 enrolled/day, 109.3/week); its cumulative
+ * line is anchored to 2026-09-07 (when every site went live). Pending updated
+ * numbers after the expansion.
  */
-export const DAILY_TARGETS: Record<Country, CountryTarget> = {
-  BF: { perDay: 16.4, perWeek: 16.4 * 7, cumulativeRatePerDay: 16.4, anchor: "data" },
-  UG: { perDay: 21.8, perWeek: 109.3, cumulativeRatePerDay: 109.3 / 7, anchor: "2026-09-07" },
+export const DAILY_TARGETS: Record<Country, CountryTarget[]> = {
+  BF: [
+    { key: "Target", label: "casesPrimary", perDay: 6, perWeek: 30, cumulativeRatePerDay: 30 / 7, anchor: "2026-07-13" },
+    {
+      key: "TargetSecondary",
+      label: "casesSecondary",
+      perDay: 12,
+      perWeek: 60.8,
+      cumulativeRatePerDay: 60.8 / 7,
+      anchor: "2026-07-13",
+    },
+  ],
+  UG: [
+    { key: "Target", label: "enrolled", perDay: 21.8, perWeek: 109.3, cumulativeRatePerDay: 109.3 / 7, anchor: "2026-09-07" },
+  ],
 };
-/** Per-site daily enrollment targets. Burkina Faso: 12 sites x 1.4 ~ 16.4. */
-export const SITE_DAILY_TARGETS: Record<Country, CountryTarget> = {
-  BF: { perDay: 1.4, perWeek: 1.4 * 7, cumulativeRatePerDay: 1.4, anchor: "data" },
-  UG: { perDay: 2.4, perWeek: 12.1, cumulativeRatePerDay: 12.1 / 7, anchor: "2026-09-07" },
-};
+
+/** Per-site goal for the map: cases enrolled per week at each site. */
+export const SITE_WEEKLY_CASE_TARGET = 2;
+/** Trailing window (in weeks) the map's per-site weekly average is taken over. */
+export const SITE_PACE_WINDOW_WEEKS = 3;
 
 /** A dated period shaded on trend charts. `start`/`end` are inclusive days. */
 export interface DateBand {
@@ -569,36 +592,50 @@ export function positivityBySite(trends: TrendsBySite): Record<string, number | 
 }
 
 /**
- * Add a Target column to a bucketed row-set. Flat (non-cumulative) targets
- * use the country's per-day or per-week rate directly (Uganda's weekly rate
- * isn't just its daily rate x7, since it only enrolls 5 days/week); cumulative
+ * Add one column per target (named by `target.key`) to a bucketed row-set.
+ * Flat (non-cumulative) targets use the per-day or per-week rate directly
+ * (weekly isn't just daily x7, since enrollment runs 5 days/week); cumulative
  * targets are `cumulativeRatePerDay x days elapsed`, so they slope upward —
  * counted from the earliest enrollment day in the data ("data" anchor) or
  * from a fixed calendar date, per `target.anchor`.
  */
 export function withTargetColumns<T extends object>(
   rows: T[],
+  targets: CountryTarget[],
+  granularity: TrendGranularity,
+  startKey: string | null,
+  maxDataKey: string | null,
+  cumulative: boolean,
+): (T & Record<string, number>)[] {
+  return rows.map((row) => {
+    const out = { ...row } as Record<string, unknown>;
+    for (const target of targets) {
+      out[target.key] = targetValue(row, target, granularity, startKey, maxDataKey, cumulative);
+    }
+    return out as T & Record<string, number>;
+  });
+}
+
+function targetValue(
+  row: object,
   target: CountryTarget,
   granularity: TrendGranularity,
   startKey: string | null,
   maxDataKey: string | null,
   cumulative: boolean,
-): (T & { Target: number })[] {
+): number {
   if (!cumulative) {
     const raw = granularity === "week" ? target.perWeek : target.perDay;
-    const flat = Math.round(raw * 10) / 10;
-    return rows.map((row) => ({ ...row, Target: flat }));
+    return Math.round(raw * 10) / 10;
   }
   const anchorKey = target.anchor === "data" ? startKey : target.anchor;
-  return rows.map((row) => {
-    if (!anchorKey || !maxDataKey) return { ...row, Target: 0 };
-    const week = String((row as Record<string, unknown>).week ?? "");
-    const days =
-      target.anchor === "data"
-        ? studyDayIndex(week, anchorKey, granularity, maxDataKey)
-        : daysSinceAnchor(week, anchorKey, granularity, maxDataKey);
-    return { ...row, Target: Math.round(target.cumulativeRatePerDay * days * 10) / 10 };
-  });
+  if (!anchorKey || !maxDataKey) return 0;
+  const week = String((row as Record<string, unknown>).week ?? "");
+  const days =
+    target.anchor === "data"
+      ? studyDayIndex(week, anchorKey, granularity, maxDataKey)
+      : daysSinceAnchor(week, anchorKey, granularity, maxDataKey);
+  return Math.round(target.cumulativeRatePerDay * days * 10) / 10;
 }
 
 export interface SiteProgress {
@@ -606,57 +643,59 @@ export interface SiteProgress {
   name: string;
   latitude: number;
   longitude: number;
+  /** Cases enrolled in the trailing window. */
   cases: number;
+  /** Average cases per week over the trailing window. */
+  weeklyAvg: number;
+  /** Per-site weekly case goal. */
   target: number;
-  /** cases / target; 1 means exactly on pace. */
+  /** weeklyAvg / target; 1 means exactly on pace. */
   ratio: number;
 }
 
 /**
- * Cumulative CASES per site measured against the per-site daily target, for
- * the map — per the study team: "colored by how far or close the current
- * cumulative enrollment (of cases) is to the target ... assuming we want to
- * enroll [1.4] cases per day per site." Only facilities with coordinates are
- * returned. Uses the same day-counting rule as the chart's cumulative target
- * line (data-driven for Burkina Faso, anchored to a fixed date for Uganda),
- * evaluated at the last day of visible data.
+ * Recent per-site pace for the map: average CASES per week over the last
+ * SITE_PACE_WINDOW_WEEKS weeks, against a goal of SITE_WEEKLY_CASE_TARGET
+ * cases/week/site. The window is the trailing 21 days ending at the last day
+ * of visible data, so it follows the date filter. Sites that opened within
+ * the window are still averaged over the full window. Only facilities with
+ * coordinates are returned.
  */
 export function siteProgress(
   screened: Enrollee[],
   facilities: { mrc: string; name: string; latitude?: number | null; longitude?: number | null }[],
   testType: TestType,
-  target: CountryTarget,
 ): SiteProgress[] {
-  const start = studyStartKey(screened);
-  const end = studyEndKey(screened);
-  const anchorKey = target.anchor === "data" ? start : target.anchor;
-  const days =
-    end && anchorKey
-      ? target.anchor === "data"
-        ? studyDayIndex(end, anchorKey, "day", end)
-        : daysSinceAnchor(end, anchorKey, "day", end)
-      : 0;
+  const end = parseDate(studyEndKey(screened) ?? "");
+  const windowDays = SITE_PACE_WINDOW_WEEKS * 7;
 
   const counts = new Map<string, number>();
-  for (const e of screened.filter(isEnrolled)) {
-    if (testResult(e, testType) !== 1) continue;
-    const mrc = e.mrc ?? "?";
-    counts.set(mrc, (counts.get(mrc) ?? 0) + 1);
+  if (end) {
+    for (const e of screened.filter(isEnrolled)) {
+      if (testResult(e, testType) !== 1) continue;
+      const d = parseDate(dayStart(e.startdate) ?? "");
+      if (!d) continue;
+      const ago = Math.round(daysBetween(end, d));
+      if (ago < 0 || ago >= windowDays) continue;
+      const mrc = e.mrc ?? "?";
+      counts.set(mrc, (counts.get(mrc) ?? 0) + 1);
+    }
   }
 
-  const targetValue = target.cumulativeRatePerDay * days;
   return facilities
     .filter((f) => typeof f.latitude === "number" && typeof f.longitude === "number")
     .map((f) => {
       const cases = counts.get(f.mrc) ?? 0;
+      const weeklyAvg = cases / SITE_PACE_WINDOW_WEEKS;
       return {
         mrc: f.mrc,
         name: f.name,
         latitude: f.latitude as number,
         longitude: f.longitude as number,
         cases,
-        target: targetValue,
-        ratio: targetValue > 0 ? cases / targetValue : 0,
+        weeklyAvg,
+        target: SITE_WEEKLY_CASE_TARGET,
+        ratio: weeklyAvg / SITE_WEEKLY_CASE_TARGET,
       };
     });
 }

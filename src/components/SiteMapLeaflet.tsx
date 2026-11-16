@@ -7,7 +7,8 @@ import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/ui";
 import type { SiteProgress } from "@/lib/metrics";
 
-/** Colour stops for enrollment pace against target. */
+/** Colour stops for recent weekly case pace against the per-site goal. */
+const EXCEEDING = "#2e6f95";
 const BEHIND = "#d1495b";
 const NEAR = "#d99a00";
 const ON_TRACK = "#2f9e6f";
@@ -15,8 +16,9 @@ const ON_TRACK = "#2f9e6f";
 const MUTED = "#9aa3ad";
 
 function paceColor(ratio: number): string {
-  if (ratio >= 0.9) return ON_TRACK;
-  if (ratio >= 0.6) return NEAR;
+  if (ratio >= 1.5) return EXCEEDING;
+  if (ratio >= 1) return ON_TRACK;
+  if (ratio >= 0.5) return NEAR;
   return BEHIND;
 }
 
@@ -57,8 +59,8 @@ function FitBounds({ bounds }: { bounds: Bounds }) {
 
 /**
  * Interactive site map on real OpenStreetMap tiles (pan/zoom like any online
- * map), one marker per site coloured by how close cumulative enrollment is to
- * the target-to-date. Loaded only on the client (see SiteMap.tsx) — Leaflet
+ * map), one marker per site coloured by its average cases per week over the
+ * last few weeks, against the per-site weekly goal. Loaded only on the client (see SiteMap.tsx) — Leaflet
  * touches `window` at import time and can't run during SSR.
  */
 export function SiteMapLeaflet({
@@ -118,7 +120,11 @@ export function SiteMapLeaflet({
                   {!dimmed && (
                     <>
                       <br />
-                      {s.cases} / {Math.round(s.target)} ({Math.round(s.ratio * 100)}%)
+                      {t("map.tooltip", {
+                        avg: s.weeklyAvg.toFixed(1),
+                        target: s.target,
+                        pct: Math.round(s.ratio * 100),
+                      })}
                     </>
                   )}
                 </Tooltip>
@@ -130,6 +136,7 @@ export function SiteMapLeaflet({
 
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs mt-2">
         {[
+          [EXCEEDING, t("map.exceeding")],
           [ON_TRACK, t("map.onTrack")],
           [NEAR, t("map.near")],
           [BEHIND, t("map.behind")],

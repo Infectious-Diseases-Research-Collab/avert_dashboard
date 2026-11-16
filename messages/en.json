@@ -48,7 +48,7 @@
   "charts": {
     "weeklyTrends": "Weekly enrollment trends",
     "dailyTrends": "Daily enrollment trends",
-    "dailyTrendsSub": "Enrollment per period, against the daily enrollment targets",
+    "dailyTrendsSub": "Enrollment per period, against the study targets",
     "cumulativeTrends": "Cumulative enrollment",
     "cumulativeTrendsSub": "Running totals since the first enrollment, against the target pace",
     "positivityTrends": "Test positivity rate",
@@ -61,7 +61,7 @@
     "weekly": "Weekly",
     "positivitySeries": "Positivity",
     "smcRounds": "Shaded bands: SMC rounds",
-    "targetRate": "Target ({rate}/day)",
+    "targetRate": "Target ({rate, number}/day)",
     "enrollmentTrendsBySiteSubCumulative": "Cumulative enrolled, cases and controls per site, against the per-site target pace",
     "enrollmentTrendsBySiteSubPositivity": "Cases as a share of enrolled, per period, per site",
     "dailyView": "Daily view",
@@ -122,7 +122,13 @@
     "week": "Week",
     "ageMonths": "Age (months)",
     "weeks": "Weeks",
-    "doseCount": "Number of doses"
+    "doseCount": "Number of doses",
+    "targetCasesPrimary": "Primary target ({rate, number} cases/{period})",
+    "targetCasesSecondary": "Secondary target ({rate, number} cases/{period})",
+    "perDay": "day",
+    "perWeek": "week",
+    "dailyTrendsSubSite": "Enrollment per period",
+    "cumulativeTrendsSubSite": "Running totals since the first enrollment"
   },
   "tables": {
     "demographics": "Demographics summary",
@@ -232,13 +238,15 @@
   },
   "map": {
     "title": "Site progress",
-    "subtitle": "Cumulative cases against a {rate} cases/day per-site target",
-    "onTrack": "On track (≥90%)",
-    "near": "Near (60–89%)",
-    "behind": "Behind (<60%)",
+    "subtitle": "Average cases per week over the last 3 weeks, against a {rate} cases/week per-site goal",
+    "onTrack": "On track (2–3/wk)",
+    "near": "Near (1–2/wk)",
+    "behind": "Behind (<1/wk)",
     "hoverHint": "Hover a site for details",
     "noCoordinates": "No site coordinates",
-    "noCoordinatesHint": "Run the facility coordinate seed in Supabase to show sites on the map."
+    "noCoordinatesHint": "Run the facility coordinate seed in Supabase to show sites on the map.",
+    "exceeding": "Exceeding (≥3/wk)",
+    "tooltip": "{avg} cases/wk (goal {target}) — {pct}%"
   },
   "download": {
     "title": "Download data",

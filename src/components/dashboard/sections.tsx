@@ -52,7 +52,7 @@ import {
   studyEndKey,
   siteProgress,
   DAILY_TARGETS,
-  SITE_DAILY_TARGETS,
+  SITE_WEEKLY_CASE_TARGET,
   SMC_ROUNDS,
   type TestType,
   type AgeDistributionBy,
@@ -124,11 +124,28 @@ export function OverviewSection({
 
   const [trendMode, setTrendMode] = useState<"enrollment" | "cumulative" | "positivity">("enrollment");
 
-  // When the facility filter narrows to a single site, the visible data is one
-  // site's, so it has to be judged against the per-site pace, not the
-  // study-wide one (which would show every site as far behind).
-  const mainTargets = (siteSelected ? SITE_DAILY_TARGETS : DAILY_TARGETS)[country];
-  const targetName = t("charts.targetRate", { rate: mainTargets.perDay });
+  // Target lines are study-wide, so they're only drawn on the overall
+  // (all-sites) charts — a single site's data has no target line.
+  const mainTargets = useMemo(
+    () => (siteSelected ? [] : DAILY_TARGETS[country]),
+    [siteSelected, country],
+  );
+  const targetSeries = useMemo(
+    () =>
+      mainTargets.map((tg, i) => {
+        const weekly = granularity === "week";
+        const rate = weekly ? tg.perWeek : tg.perDay;
+        const name =
+          tg.label === "enrolled"
+            ? t("charts.targetRate", { rate: tg.perDay })
+            : t(tg.label === "casesPrimary" ? "charts.targetCasesPrimary" : "charts.targetCasesSecondary", {
+                rate,
+                period: t(weekly ? "charts.perWeek" : "charts.perDay"),
+              });
+        return { key: tg.key, name, color: i === 0 ? PALETTE.green : PALETTE.orange, dashed: true };
+      }),
+    [mainTargets, granularity, t],
+  );
 
   const weekly = useMemo(() => weeklyTrends(enrollees, granularity), [enrollees, granularity]);
   const hasMicro = weekly.some((w) => w["Micro+"] + w["Micro-"] > 0);
@@ -153,10 +170,10 @@ export function OverviewSection({
     [enrollees, testType, granularity],
   );
 
-  // Map: cumulative cases per site vs the per-site target to date.
+  // Map: recent weekly case pace per site vs the per-site weekly goal.
   const progress = useMemo(
-    () => siteProgress(enrollees, facilities, testType, SITE_DAILY_TARGETS[country]),
-    [enrollees, facilities, testType, country],
+    () => siteProgress(enrollees, facilities, testType),
+    [enrollees, facilities, testType],
   );
 
   const facilityCounts = useMemo(
@@ -228,24 +245,16 @@ export function OverviewSection({
     [t],
   );
 
-  // Per-site cumulative Enrolled, with target lines attached — drives the
-  // full-width "line" view (one line per site, comparing sites to each
-  // other). Cases/Controls aren't added here: 11 sites x 3 metrics would be
-  // 33 overlaid lines, unreadable in that layout.
+  // Per-site cumulative Enrolled — drives the full-width "line" view (one
+  // line per site, comparing sites to each other). Cases/Controls aren't
+  // added here: 11 sites x 3 metrics would be 33 overlaid lines, unreadable
+  // in that layout. No target lines on per-site plots.
   const cumulativeBySite = useMemo(
-    () =>
-      withTargetColumns(
-        toCumulative(trendsBySite.enrolled, siteNames),
-        SITE_DAILY_TARGETS[country],
-        granularity,
-        startKey,
-        endKey,
-        true,
-      ),
-    [trendsBySite, siteNames, granularity, startKey, endKey, country],
+    () => toCumulative(trendsBySite.enrolled, siteNames),
+    [trendsBySite, siteNames],
   );
   const cumulativeMax = useMemo(
-    () => seriesMax(cumulativeBySite, [...siteNames, "Target"]),
+    () => seriesMax(cumulativeBySite, siteNames),
     [cumulativeBySite, siteNames],
   );
 
@@ -265,10 +274,7 @@ export function OverviewSection({
     if (siteMetric === "cumulative") {
       return {
         rows: cumulativeBySite as unknown as Record<string, unknown>[],
-        series: [
-          ...siteSeries,
-          { key: "Target", name: t("charts.targetRate", { rate: SITE_DAILY_TARGETS[country].perDay }), color: PALETTE.green, dashed: true },
-        ],
+        series: siteSeries,
         domainMax: cumulativeMax,
         percent: false,
       };
@@ -282,7 +288,7 @@ export function OverviewSection({
       };
     }
     return null;
-  }, [siteMetric, cumulativeBySite, cumulativeMax, positivityBySiteRows, siteSeries, t, country]);
+  }, [siteMetric, cumulativeBySite, cumulativeMax, positivityBySiteRows, siteSeries]);
   const villages = useMemo(
     () => enrollmentByVillage(enrollees, testType, villageNames),
     [enrollees, testType, villageNames],
@@ -318,10 +324,14 @@ export function OverviewSection({
             )}
             subtitle={t(
               trendMode === "cumulative"
-                ? "charts.cumulativeTrendsSub"
+                ? siteSelected
+                  ? "charts.cumulativeTrendsSubSite"
+                  : "charts.cumulativeTrendsSub"
                 : trendMode === "positivity"
                   ? "charts.positivityTrendsSub"
-                  : "charts.dailyTrendsSub",
+                  : siteSelected
+                    ? "charts.dailyTrendsSubSite"
+                    : "charts.dailyTrendsSub",
             )}
             action={
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -386,7 +396,7 @@ export function OverviewSection({
                       { key: "Micro-", name: t("charts.microNegative"), color: PALETTE.brown },
                     ]
                   : []),
-                { key: "Target", name: targetName, color: PALETTE.green, dashed: true },
+                ...targetSeries,
               ]}
             />
           )}
@@ -401,7 +411,7 @@ export function OverviewSection({
                 { key: "Enrolled", name: t("charts.enrolledSeries"), color: PALETTE.primary },
                 { key: "Cases", name: t("charts.casesSeries"), color: PALETTE.pos },
                 { key: "Controls", name: t("charts.controlsSeries"), color: PALETTE.neg },
-                { key: "Target", name: targetName, color: PALETTE.green, dashed: true },
+                ...targetSeries,
               ]}
             />
           )}
@@ -424,7 +434,7 @@ export function OverviewSection({
         <Card>
           <SectionTitle
             title={t("map.title")}
-            subtitle={t("map.subtitle", { rate: SITE_DAILY_TARGETS[country].perDay })}
+            subtitle={t("map.subtitle", { rate: SITE_WEEKLY_CASE_TARGET })}
           />
           <SiteMap sites={progress} highlightMrc={selectedMrc} />
         </Card>
@@ -607,7 +617,6 @@ export function OverviewSection({
                           Enrolled: (r[site.name] as number) ?? 0,
                           Cases: (cumulativeCasesBySite[i]?.[site.name] as number) ?? 0,
                           Controls: (cumulativeControlsBySite[i]?.[site.name] as number) ?? 0,
-                          Target: r.Target,
                         }))
                       : null;
                   const positivityRows =
@@ -621,7 +630,6 @@ export function OverviewSection({
                     { key: "Enrolled", name: t("charts.enrolledSeries"), color: PALETTE.primary },
                     { key: "Cases", name: t("charts.casesSeries"), color: PALETTE.pos },
                     { key: "Controls", name: t("charts.controlsSeries"), color: PALETTE.neg },
-                    { key: "Target", name: t("charts.targetRate", { rate: SITE_DAILY_TARGETS[country].perDay }), color: PALETTE.green, dashed: true },
                   ];
                   const finalCumulative = cumulativeRows?.length ? cumulativeRows[cumulativeRows.length - 1] : null;
                   const lastPositivity = positivityRows?.length
@@ -699,7 +707,6 @@ export function OverviewSection({
                     { key: "Enrolled", name: t("charts.enrolledSeries"), color: PALETTE.primary },
                     { key: "Cases", name: t("charts.casesSeries"), color: PALETTE.pos },
                     { key: "Controls", name: t("charts.controlsSeries"), color: PALETTE.neg },
-                    { key: "Target", name: t("charts.targetRate", { rate: SITE_DAILY_TARGETS[country].perDay }), color: PALETTE.green },
                   ]}
                 />
               )}
