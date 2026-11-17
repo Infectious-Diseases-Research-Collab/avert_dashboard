@@ -77,6 +77,7 @@ export default async function DashboardPage() {
     waivers,
     lastRunRes,
     villageRows,
+    labDeliveriesRes,
   ] =
     await Promise.all([
       supabase.from("facilities").select("*"),
@@ -136,6 +137,10 @@ export default async function DashboardPage() {
         .order("finished_at", { ascending: false })
         .limit(1),
       fetchVillages(supabase, visibleCountries(profile)),
+      // One row per lab file; a handful at most. Before the
+      // 20261117000000_lab_microscopy migration is pushed this errors and
+      // `data` is null, which reads as "no cutoff".
+      supabase.from("lab_deliveries").select("country,complete_through"),
       // Usage logging (see supabase/schema.sql `access_log`) — best-effort, not
       // read anywhere in the app, so its result is intentionally discarded.
       supabase.rpc("log_access_event", { p_event: "page_view" }),
@@ -151,11 +156,23 @@ export default async function DashboardPage() {
     v.village,
   ]);
 
-  // Attach microscopy fields from blood_smear (empty until blood_smear.csv is loaded).
+  // Latest complete-through date per country across its lab deliveries.
+  const microscopyThrough: Partial<Record<Country, string>> = {};
+  for (const d of (labDeliveriesRes.data ?? []) as { country: Country; complete_through: string }[]) {
+    const cur = microscopyThrough[d.country];
+    if (!cur || d.complete_through > cur) microscopyThrough[d.country] = d.complete_through;
+  }
+
+  // Attach microscopy fields from blood_smear (the lab's smear readings). Only
+  // up to the lab's complete-through date: past it the lab reads selectively
+  // (positives first), so those readings would skew positivity and PPV/NPV
+  // wherever microscopy is used. They stay in blood_smear and appear once a
+  // later delivery moves the date on.
   const bloodByBarcode = new Map(bloodRows.map((b) => [b.barcode, b]));
   for (const e of enrollees) {
     const b = e.barcode ? bloodByBarcode.get(e.barcode) : undefined;
-    if (b) {
+    const through = microscopyThrough[e.country];
+    if (b && (!through || (e.startdate != null && e.startdate.slice(0, 10) <= through))) {
       e.mic_positive = b.mic_positive;
       e.parasitedensity = b.parasitedensity;
       e.slidequality = b.slidequality;
@@ -180,6 +197,7 @@ export default async function DashboardPage() {
       corrections={corrections}
       villageLookup={villageLookup}
       lastDataPull={lastDataPull}
+      microscopyThrough={microscopyThrough}
     />
   );
 }

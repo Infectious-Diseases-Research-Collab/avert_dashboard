@@ -290,6 +290,7 @@ export function MultiLine<T extends object>({
   dateX = false,
   legend = true,
   bands = [],
+  tooltipValue,
 }: {
   data: T[];
   xKey: string;
@@ -300,6 +301,8 @@ export function MultiLine<T extends object>({
   legend?: boolean;
   /** Labelled date periods to shade behind the lines. */
   bands?: DateBand[];
+  /** Custom tooltip text per series value, given that point's data row. */
+  tooltipValue?: (value: unknown, seriesKey: string, row: T) => string;
 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -319,7 +322,16 @@ export function MultiLine<T extends object>({
           allowDecimals={!percent}
           width={44}
         />
-        <Tooltip {...tooltipStyle()} labelFormatter={dateX ? (v) => fmtWeek(String(v)) : undefined} />
+        <Tooltip
+          {...tooltipStyle()}
+          labelFormatter={dateX ? (v) => fmtWeek(String(v)) : undefined}
+          formatter={
+            tooltipValue
+              ? (value, _name, item) =>
+                  tooltipValue(value, String(item.dataKey ?? ""), item.payload as T)
+              : undefined
+          }
+        />
         {legend && <Legend wrapperStyle={{ fontSize: 12 }} />}
         {series.map((s) => (
           <Line

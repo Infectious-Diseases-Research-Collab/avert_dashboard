@@ -99,8 +99,10 @@
     "ageAtVaccinationSub": "Mois à chaque dose (lignes de référence : {lines})",
     "timeSinceLastDose": "Temps depuis la dernière dose (semaines)",
     "timeBetweenDoses": "Temps entre les doses (semaines)",
-    "concordanceOverTime": "Concordance TDR–microscopie dans le temps",
+    "predictiveValuesOverTime": "Valeurs prédictives positive et négative du TDR dans le temps",
+    "predictiveValuesSub": "Par semaine d'inclusion, la microscopie servant de référence",
     "parasiteDensity": "Densité parasitaire selon le statut TDR",
+    "parasiteDensitySub": "Participants positifs à la microscopie, log10 parasites/µL",
     "male": "Masculin",
     "female": "Féminin",
     "enrolledSeries": "Inclus",
@@ -159,7 +161,13 @@
   "microscopy": {
     "title": "Résultats de microscopie",
     "noData": "Aucune donnée de microscopie disponible pour le moment.",
-    "noDataHint": "Les données de lecture des gouttes épaisses n'ont pas été chargées. Cette section se remplira automatiquement dès qu'elles seront disponibles."
+    "noDataHint": "Les données de lecture des gouttes épaisses n'ont pas été chargées. Cette section se remplira automatiquement dès qu'elles seront disponibles.",
+    "throughNote": "Les résultats de microscopie couvrent les participants inclus jusqu'au {date}. Les lames lues après cette date ne sont pas encore complètes et sont exclues jusqu'à la prochaine livraison du laboratoire.",
+    "coverage": "Couverture microscopie",
+    "coverageSub": "{n} sur {total} inclus ont un résultat de goutte épaisse",
+    "ppvSub": "TDR+ confirmés par la microscopie",
+    "npvSub": "TDR− confirmés par la microscopie",
+    "total": "Total"
   },
   "verification": {
     "title": "Visites de vérification de la couverture vaccinale",

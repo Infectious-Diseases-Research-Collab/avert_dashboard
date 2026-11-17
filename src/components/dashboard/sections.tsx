@@ -41,6 +41,9 @@ import {
   timeSinceLastDose,
   timeBetweenDoses,
   concordance,
+  microscopyCoverage,
+  predictiveValuesOverTime,
+  parasiteDensityByRdt,
   verificationSummary,
   verificationCandidates,
   cumulativeTrends,
@@ -88,6 +91,8 @@ interface SectionProps {
   siteSelected: boolean;
   /** mrc code of that site, or null when viewing all sites. */
   selectedMrc: string | null;
+  /** Date through which every lab smear has been read, for this country. */
+  microscopyThrough: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -923,9 +928,21 @@ export function VaccineCoverageSection({ enrollees, country }: SectionProps) {
 
 // ---------------------------------------------------------------------------
 
-export function MicroscopySection({ enrollees }: SectionProps) {
+function fmtLongDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+export function MicroscopySection({ enrollees, microscopyThrough }: SectionProps) {
   const t = useTranslations();
   const c = useMemo(() => concordance(enrollees), [enrollees]);
+  const coverage = useMemo(
+    () => microscopyCoverage(enrollees, microscopyThrough),
+    [enrollees, microscopyThrough],
+  );
+  const pv = useMemo(() => predictiveValuesOverTime(enrollees), [enrollees]);
+  const density = useMemo(() => parasiteDensityByRdt(enrollees), [enrollees]);
 
   if (!c.hasData) {
     return (
@@ -938,6 +955,20 @@ export function MicroscopySection({ enrollees }: SectionProps) {
 
   return (
     <div className="space-y-5">
+      {microscopyThrough && (
+        <p className="muted text-sm italic">
+          {t("microscopy.throughNote", { date: fmtLongDate(microscopyThrough) })}
+        </p>
+      )}
+      <div className="grid sm:grid-cols-3 gap-4">
+        <StatCard
+          label={t("microscopy.coverage")}
+          value={fmtPct(coverage.pct)}
+          sub={t("microscopy.coverageSub", { n: coverage.withResult, total: coverage.eligible })}
+        />
+        <StatCard label={t("tables.ppv")} value={fmtPct(c.ppv)} sub={t("microscopy.ppvSub")} />
+        <StatCard label={t("tables.npv")} value={fmtPct(c.npv)} sub={t("microscopy.npvSub")} />
+      </div>
       <div className="grid lg:grid-cols-2 gap-5">
         <Card>
           <SectionTitle title={t("tables.crosstab")} />
@@ -952,6 +983,9 @@ export function MicroscopySection({ enrollees }: SectionProps) {
                   <th className="px-3 py-2 border-b border-[var(--border)] text-right muted font-medium">
                     Micro−
                   </th>
+                  <th className="px-3 py-2 border-b border-[var(--border)] text-right muted font-medium">
+                    {t("microscopy.total")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -959,11 +993,23 @@ export function MicroscopySection({ enrollees }: SectionProps) {
                   <td className="px-3 py-2 border-b border-[var(--border)]">RDT+</td>
                   <td className="px-3 py-2 border-b border-[var(--border)] text-right tabular-nums">{c.tp}</td>
                   <td className="px-3 py-2 border-b border-[var(--border)] text-right tabular-nums">{c.fp}</td>
+                  <td className="px-3 py-2 border-b border-[var(--border)] text-right tabular-nums">
+                    {c.tp + c.fp}
+                  </td>
                 </tr>
                 <tr>
                   <td className="px-3 py-2 border-b border-[var(--border)]">RDT−</td>
                   <td className="px-3 py-2 border-b border-[var(--border)] text-right tabular-nums">{c.fn}</td>
                   <td className="px-3 py-2 border-b border-[var(--border)] text-right tabular-nums">{c.tn}</td>
+                  <td className="px-3 py-2 border-b border-[var(--border)] text-right tabular-nums">
+                    {c.fn + c.tn}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 muted">{t("microscopy.total")}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{c.tp + c.fn}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{c.fp + c.tn}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{c.tp + c.fp + c.fn + c.tn}</td>
                 </tr>
               </tbody>
             </table>
@@ -972,6 +1018,40 @@ export function MicroscopySection({ enrollees }: SectionProps) {
         <Card>
           <SectionTitle title={t("tables.concordanceMetrics")} />
           <ConcordanceTable c={c} />
+        </Card>
+      </div>
+      <div className="grid lg:grid-cols-2 gap-5">
+        <Card>
+          <SectionTitle
+            title={t("charts.predictiveValuesOverTime")}
+            subtitle={t("charts.predictiveValuesSub")}
+          />
+          <MultiLine
+            data={pv}
+            xKey="week"
+            dateX
+            percent
+            series={[
+              { key: "PPV", name: t("tables.ppv"), color: PALETTE.pos },
+              { key: "NPV", name: t("tables.npv"), color: PALETTE.neg },
+            ]}
+            tooltipValue={(v, key, row) =>
+              v == null
+                ? "—"
+                : `${v}% (n=${key === "PPV" ? row.rdtPos : row.rdtNeg} ${key === "PPV" ? "RDT+" : "RDT−"})`
+            }
+          />
+        </Card>
+        <Card>
+          <SectionTitle title={t("charts.parasiteDensity")} subtitle={t("charts.parasiteDensitySub")} />
+          <MultiBar
+            data={density as unknown as Record<string, unknown>[]}
+            xKey="label"
+            series={[
+              { key: "RDT+", name: t("charts.rdtPositive"), color: PALETTE.pos },
+              { key: "RDT-", name: t("charts.rdtNegative"), color: PALETTE.neg },
+            ]}
+          />
         </Card>
       </div>
     </div>

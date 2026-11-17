@@ -99,8 +99,10 @@
     "ageAtVaccinationSub": "Months at each dose (reference lines: {lines})",
     "timeSinceLastDose": "Time since last dose (weeks)",
     "timeBetweenDoses": "Time between doses (weeks)",
-    "concordanceOverTime": "RDT–microscopy concordance over time",
+    "predictiveValuesOverTime": "RDT positive and negative predictive value over time",
+    "predictiveValuesSub": "By enrollment week, with microscopy as the reference",
     "parasiteDensity": "Parasite density by RDT status",
+    "parasiteDensitySub": "Microscopy-positive participants, log10 parasites/µL",
     "male": "Male",
     "female": "Female",
     "enrolledSeries": "Enrolled",
@@ -159,7 +161,13 @@
   "microscopy": {
     "title": "Microscopy results",
     "noData": "No microscopy data available yet.",
-    "noDataHint": "Blood-smear reading data has not been loaded. This section will populate automatically once it is available."
+    "noDataHint": "Blood-smear reading data has not been loaded. This section will populate automatically once it is available.",
+    "throughNote": "Microscopy results cover participants enrolled through {date}. Slides read after that date are not yet complete and are left out until the lab's next delivery.",
+    "coverage": "Microscopy coverage",
+    "coverageSub": "{n} of {total} enrolled have a smear result",
+    "ppvSub": "RDT+ confirmed by microscopy",
+    "npvSub": "RDT− confirmed by microscopy",
+    "total": "Total"
   },
   "verification": {
     "title": "Vaccine-coverage verification visits",

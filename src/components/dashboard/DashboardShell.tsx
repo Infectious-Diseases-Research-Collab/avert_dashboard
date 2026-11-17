@@ -75,6 +75,7 @@ export function DashboardShell({
   corrections,
   villageLookup,
   lastDataPull,
+  microscopyThrough,
 }: {
   profile: Profile;
   facilities: Facility[];
@@ -86,6 +87,8 @@ export function DashboardShell({
   corrections: AppliedCorrection[];
   villageLookup: [string, string][];
   lastDataPull: string | null;
+  /** Per country, the date through which every lab smear has been read. */
+  microscopyThrough: Partial<Record<Country, string>>;
 }) {
   const t = useTranslations();
   const canSwitchCountry = profile.country_access === "BOTH";
@@ -180,6 +183,7 @@ export function DashboardShell({
     downloadQuery,
     siteSelected: mrc !== "all",
     selectedMrc: mrc === "all" ? null : mrc,
+    microscopyThrough: microscopyThrough[country] ?? null,
   };
 
   const navItems: SectionKey[] = [

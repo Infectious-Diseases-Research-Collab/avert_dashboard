@@ -1124,6 +1124,93 @@ export function concordance(screened: Enrollee[]): Concordance {
   };
 }
 
+export interface MicroscopyCoverage {
+  /** Enrolled up to the lab's complete-through date (all, if no date). */
+  eligible: number;
+  /** Of those, how many have a smear result. */
+  withResult: number;
+  pct: number | null;
+}
+
+/** Share of enrolled participants with a smear result, counted only up to the
+ *  date the lab says every sample has been read, so recent enrollees whose
+ *  slides simply haven't been read yet don't pull it down. */
+export function microscopyCoverage(screened: Enrollee[], through: string | null): MicroscopyCoverage {
+  const eligible = screened.filter(
+    (e) => isEnrolled(e) && (!through || (e.startdate != null && e.startdate.slice(0, 10) <= through)),
+  );
+  const withResult = eligible.filter((e) => e.mic_positive === 0 || e.mic_positive === 1).length;
+  return {
+    eligible: eligible.length,
+    withResult,
+    pct: eligible.length ? (withResult / eligible.length) * 100 : null,
+  };
+}
+
+export interface PredictiveValuePoint {
+  week: string;
+  /** % of RDT+ that are microscopy+ (null when no RDT+ that week). */
+  PPV: number | null;
+  /** % of RDT− that are microscopy− (null when no RDT− that week). */
+  NPV: number | null;
+  rdtPos: number;
+  rdtNeg: number;
+}
+
+/** Weekly RDT positive/negative predictive value against microscopy, by
+ *  enrollment week -- the same bucketing as the R mock's
+ *  calculate_concordance_by_week(). Covers only the weeks spanned by records
+ *  that have both results, so weeks the lab hasn't read yet don't show as
+ *  gaps running to today. */
+export function predictiveValuesOverTime(screened: Enrollee[]): PredictiveValuePoint[] {
+  const both = screened.filter(
+    (e) => isEnrolled(e) && (e.mic_positive === 0 || e.mic_positive === 1) && (e.result === 0 || e.result === 1),
+  );
+  const dates = both.map((e) => parseDate(e.startdate)).filter((d): d is Date => d !== null);
+  const buckets = bucketKeysInRange(dates, "week");
+  const per = new Map<string, { tp: number; fp: number; tn: number; fn: number }>();
+  for (const b of buckets) per.set(b, { tp: 0, fp: 0, tn: 0, fn: 0 });
+  for (const e of both) {
+    const key = weekStart(e.startdate);
+    const row = key ? per.get(key) : undefined;
+    if (!row) continue;
+    if (e.result === 1) {
+      if (e.mic_positive === 1) row.tp += 1;
+      else row.fp += 1;
+    } else if (e.mic_positive === 0) row.tn += 1;
+    else row.fn += 1;
+  }
+  const pct = (num: number, den: number) => (den ? Math.round((num / den) * 1000) / 10 : null);
+  return buckets.map((week) => {
+    const r = per.get(week)!;
+    return {
+      week,
+      PPV: pct(r.tp, r.tp + r.fp),
+      NPV: pct(r.tn, r.tn + r.fn),
+      rdtPos: r.tp + r.fp,
+      rdtNeg: r.tn + r.fn,
+    };
+  });
+}
+
+/** log10 parasite density of microscopy-positive enrollees, split by RDT
+ *  result, in half-log bins (the R mock's plot_parasite_density_by_rdt). */
+export function parasiteDensityByRdt(screened: Enrollee[]): HistBin[] {
+  const data = screened
+    .filter(
+      (e) =>
+        isEnrolled(e) &&
+        e.parasitedensity != null &&
+        e.parasitedensity > 0 &&
+        (e.result === 0 || e.result === 1),
+    )
+    .map((e) => ({
+      value: Math.log10(e.parasitedensity as number),
+      series: e.result === 1 ? "RDT+" : "RDT-",
+    }));
+  return histogram(data, 0.5, ["RDT+", "RDT-"]).map((b) => ({ ...b, label: b.x.toFixed(1) }));
+}
+
 // ---------------------------------------------------------------------------
 // Vaccine-verification (coverage-visit) tracking
 // ---------------------------------------------------------------------------
