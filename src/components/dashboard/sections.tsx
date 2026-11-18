@@ -153,7 +153,6 @@ export function OverviewSection({
   );
 
   const weekly = useMemo(() => weeklyTrends(enrollees, granularity), [enrollees, granularity]);
-  const hasMicro = weekly.some((w) => w["Micro+"] + w["Micro-"] > 0);
   const dailyWithTargets = useMemo(
     () => withTargetColumns(weekly, mainTargets, granularity, startKey, endKey, false),
     [weekly, mainTargets, granularity, startKey, endKey],
@@ -393,14 +392,17 @@ export function OverviewSection({
               series={[
                 { key: "Screened", name: t("kpi.screened"), color: PALETTE.grey },
                 { key: "Enrolled", name: t("charts.enrolledSeries"), color: PALETTE.primary },
-                { key: "RDT+", name: t("charts.rdtPositive"), color: PALETTE.pos },
-                { key: "RDT-", name: t("charts.rdtNegative"), color: PALETTE.neg },
-                ...(hasMicro
+                // Only the lines for the selected case definition, so the
+                // chart stays readable.
+                ...(testType === "microscopy"
                   ? [
                       { key: "Micro+", name: t("charts.microPositive"), color: PALETTE.purple },
                       { key: "Micro-", name: t("charts.microNegative"), color: PALETTE.brown },
                     ]
-                  : []),
+                  : [
+                      { key: "RDT+", name: t("charts.rdtPositive"), color: PALETTE.pos },
+                      { key: "RDT-", name: t("charts.rdtNegative"), color: PALETTE.neg },
+                    ]),
                 ...targetSeries,
               ]}
             />
@@ -937,10 +939,7 @@ function fmtLongDate(iso: string): string {
 export function MicroscopySection({ enrollees, microscopyThrough }: SectionProps) {
   const t = useTranslations();
   const c = useMemo(() => concordance(enrollees), [enrollees]);
-  const coverage = useMemo(
-    () => microscopyCoverage(enrollees, microscopyThrough),
-    [enrollees, microscopyThrough],
-  );
+  const coverage = useMemo(() => microscopyCoverage(enrollees), [enrollees]);
   const pv = useMemo(() => predictiveValuesOverTime(enrollees), [enrollees]);
   const density = useMemo(() => parasiteDensityByRdt(enrollees), [enrollees]);
 

@@ -172,6 +172,7 @@ export default async function DashboardPage() {
   for (const e of enrollees) {
     const b = e.barcode ? bloodByBarcode.get(e.barcode) : undefined;
     const through = microscopyThrough[e.country];
+    if (b && (b.mic_positive === 0 || b.mic_positive === 1)) e.mic_read = true;
     if (b && (!through || (e.startdate != null && e.startdate.slice(0, 10) <= through))) {
       e.mic_positive = b.mic_positive;
       e.parasitedensity = b.parasitedensity;

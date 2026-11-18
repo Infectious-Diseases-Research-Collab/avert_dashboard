@@ -59,6 +59,10 @@ export interface Enrollee {
   parasitedensity?: number | null;
   mic_positive?: number | null;
   slidequality?: number | null;
+  /** The lab has a smear result for this barcode, whether or not it falls
+   *  within the complete-through window (mic_positive is only set inside it).
+   *  Drives microscopy coverage. */
+  mic_read?: boolean;
 }
 
 export interface VaccinationStatus {

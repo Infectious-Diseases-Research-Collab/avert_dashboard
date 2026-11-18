@@ -1125,21 +1125,19 @@ export function concordance(screened: Enrollee[]): Concordance {
 }
 
 export interface MicroscopyCoverage {
-  /** Enrolled up to the lab's complete-through date (all, if no date). */
+  /** Every enrolled participant in the current filters. */
   eligible: number;
-  /** Of those, how many have a smear result. */
+  /** Of those, how many the lab has a smear result for. */
   withResult: number;
   pct: number | null;
 }
 
-/** Share of enrolled participants with a smear result, counted only up to the
- *  date the lab says every sample has been read, so recent enrollees whose
- *  slides simply haven't been read yet don't pull it down. */
-export function microscopyCoverage(screened: Enrollee[], through: string | null): MicroscopyCoverage {
-  const eligible = screened.filter(
-    (e) => isEnrolled(e) && (!through || (e.startdate != null && e.startdate.slice(0, 10) <= through)),
-  );
-  const withResult = eligible.filter((e) => e.mic_positive === 0 || e.mic_positive === 1).length;
+/** Share of all enrolled participants the lab has a smear result for. Counts
+ *  every reading, including those past the complete-through date that the
+ *  other microscopy figures leave out (see mic_read). */
+export function microscopyCoverage(screened: Enrollee[]): MicroscopyCoverage {
+  const eligible = screened.filter(isEnrolled);
+  const withResult = eligible.filter((e) => e.mic_read).length;
   return {
     eligible: eligible.length,
     withResult,
