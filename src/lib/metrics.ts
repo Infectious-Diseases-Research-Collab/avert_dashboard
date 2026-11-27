@@ -120,8 +120,15 @@ export function histogram(
 // Core record predicates (ported from R/data_loader.R + get_filtered_data)
 // ---------------------------------------------------------------------------
 
+/** Enrolled = eligible AND consent actually given. Being consent-eligible is
+ *  not enough: refusals (consent = 0) and children whose form stopped before
+ *  consent (re-enrolment within 14 days of a previous visit) are eligible but
+ *  never enrolled, and get no barcode. Matches the "enrolled" filter in
+ *  refresh_quality_issues() (supabase/migrations/20261127000000_*). */
 export function isEnrolled(e: Enrollee): boolean {
-  return e.age_eligible === 1 && e.mal_test_eligible === 1 && e.consent_eligible === 1;
+  return (
+    e.age_eligible === 1 && e.mal_test_eligible === 1 && e.consent_eligible === 1 && e.consent === 1
+  );
 }
 
 /** Case-definition result: RDT `result` or microscopy `mic_positive`. */

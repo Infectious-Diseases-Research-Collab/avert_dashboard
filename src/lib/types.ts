@@ -39,6 +39,9 @@ export interface Enrollee {
   age_eligible: number | null;
   mal_test_eligible: number | null;
   consent_eligible: number | null;
+  /** Main consent given (1) or refused (0); null when the form stopped
+   *  before the consent question. Generated from raw->>'consent'. */
+  consent: number | null;
   gender: number | null;
   sex: number | null;
   result: number | null;

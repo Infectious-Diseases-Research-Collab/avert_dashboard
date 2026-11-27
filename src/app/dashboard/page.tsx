@@ -16,7 +16,7 @@ import type {
 
 const ENROLLEE_COLS =
   "uniqueid,country,subjid,barcode,mrc,district,subcounty,parish,village,startdate,enrollment_week,dob," +
-  "agemonths_calculated,age_eligible,mal_test_eligible,consent_eligible,gender,sex," +
+  "agemonths_calculated,age_eligible,mal_test_eligible,consent_eligible,consent,gender,sex," +
   "result,vx_card,need_vac_cov,vx_any,vx_doses_received," +
   "vx_dose1_date,vx_dose2_date,vx_dose3_date,vx_dose4_date," +
   // Generated from the raw jsonb, so reading them doesn't decompress raw on
